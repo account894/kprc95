@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>물가정보 통합 검색 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #f1f5f9; }
+        .data-table-container { max-height: 650px; overflow: auto; scrollbar-gutter: stable; }
+        .data-table-container::-webkit-scrollbar { width: 6px; height: 6px; }
+        .data-table-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .data-table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .highlight { background-color: #fef08a; color: #1e40af; font-weight: bold; padding: 0 2px; border-radius: 2px; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #memoArea, #memoArea * { visibility: visible; }
+            #memoArea { position: absolute; left: 0; top: 0; width: 100%; border: none !important; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 lg:p-8">
+
+    <div class="max-w-[1600px] mx-auto">
+        <!-- 상단 헤더 섹션 -->
+        <header class="mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <span class="text-3xl">🏢</span>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">종합 물가정보 검색 포털</h1>
+                </div>
+                <p class="text-slate-500 text-sm flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                    데이터베이스: <span class="font-medium text-slate-700 text-blue-600">Google Cloud DB</span> 연동 모드
+                </p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold ml-1 mb-1 uppercase tracking-widest">Category Filter</span>
+                    <select id="categoryFilter" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none transition-all w-48">
+                        <option value="">전체 카테고리</option>
+                    </select>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-slate-400 font-bold ml-1 mb-1 uppercase tracking-widest">Search DB</span>
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="품명 또는 규격 입력..." 
+                            class="pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all w-64 md:w-80">
+                        <span class="absolute left-3 top-3 text-slate-400">🔍</span>
+                    </div>
+                </div>
+                <div class="flex items-end self-end">
+                    <button onclick="fetchSheetData()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-lg shadow-blue-100 transition-all active:scale-95" title="데이터 새로고침">
+                        🔄
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            
+            <!-- 왼쪽: 메인 데이터 테이블 -->
+            <div class="xl:col-span-4 space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-6 py-3 border-b border-slate-100 flex justify-between items-center">
+                        <span id="rowCount" class="text-xs font-bold text-slate-500">연결 대기 중...</span>
+                        <div id="statusArea" class="hidden text-xs text-blue-600 flex items-center gap-2 font-medium">
+                            <div class="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            최종 확인 중
+                        </div>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="min-w-full divide-y divide-slate-200 text-left" id="dataTable">
+                            <thead class="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                                <tr id="tableHeader" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-100" id="tableBody">
+                                <tr>
+                                    <td colspan="100%" class="px-6 py-32 text-center">
+                                        <div class="flex flex-col items-center gap-4">
+                                            <div id="loadingSpinner" class="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin"></div>
+                                            <p id="loadingText" class="text-slate-400">데이터 로딩 방식을 최적화하고 있습니다...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="debugPanel" class="hidden p-4 bg-slate-800 text-green-400 font-mono text-[10px] rounded-xl overflow-auto max-h-40">
+                </div>
+            </div>
+
+            <!-- 오른쪽: 업무용 메모장 -->
+            <div class="xl:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[750px] sticky top-8 overflow-hidden">
+                    <div class="bg-amber-50 p-5 border-b border-amber-100">
+                        <h2 class="text-lg font-bold text-amber-900 flex items-center gap-2">
+                            <span>📋</span> 견적/조회 메모장
+                        </h2>
+                        <p class="text-xs text-amber-700 mt-1">항목을 클릭하면 기록됩니다.</p>
+                    </div>
+                    
+                    <div class="flex-1 p-2 bg-[#fffdf2]">
+                        <textarea id="memoArea" placeholder="조회한 품목을 여기에 수집하세요..."
+                            class="w-full h-full p-4 bg-transparent border-none focus:ring-0 text-slate-700 leading-relaxed resize-none text-sm font-medium"></textarea>
+                    </div>
+
+                    <div class="p-4 bg-white border-t border-slate-100 grid grid-cols-2 gap-2">
+                        <button onclick="copyToClipboard()" class="flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">
+                            📄 전체 복사
+                        </button>
+                        <button onclick="window.print()" class="flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">
+                            🖨️ 메모 인쇄
+                        </button>
+                        <button onclick="clearMemo()" class="col-span-2 py-2 text-slate-400 hover:text-red-500 text-[10px] font-bold transition-all underline underline-offset-4">
+                            메모장 비우기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur text-white px-6 py-3 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-500 z-50 text-sm font-medium flex items-center gap-3">
+        <span id="toastIcon">✅</span>
+        <span id="toastMsg">메시지</span>
+    </div>
+
+    <!-- 설정값 (정확한 ID와 GID 적용) -->
+    <input type="hidden" id="sheetId" value="1EXrDeW4XOslHDwDliZ11esmpkHeH8cu956XeZOfu4Aw">
+    <input type="hidden" id="sheetName" value="Sheet1">
+    <input type="hidden" id="sheetGid" value="463878926">
+
+    <script>
+        let allData = [];
+        let headers = [];
+        let filteredData = [];
+
+        window.onload = () => {
+            loadMemo();
+            fetchSheetData();
+        };
+
+        function addLog(msg, isError = false) {
+            const panel = document.getElementById('debugPanel');
+            panel.classList.remove('hidden');
+            const colorClass = isError ? 'text-red-400' : 'text-green-400';
+            panel.innerHTML += `<div class="${colorClass}">> ${msg}</div>`;
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (e) {
+                clearTimeout(id);
+                throw e;
+            }
+        }
+
+        async function fetchSheetData() {
+            const sheetId = document.getElementById('sheetId').value;
+            const sheetName = document.getElementById('sheetName').value;
+            const sheetGid = document.getElementById('sheetGid').value;
+            const statusArea = document.getElementById('statusArea');
+            const tableBody = document.getElementById('tableBody');
+            const debugPanel = document.getElementById('debugPanel');
+            
+            debugPanel.innerHTML = "";
+            debugPanel.classList.add('hidden');
+            statusArea.classList.remove('hidden');
+            addLog("데이터 연동 프로세스 시작...");
+
+            // 로컬 파일 경로인 경우 안내 로그 추가
+            if (window.location.protocol === 'file:') {
+                addLog("감지: 로컬 파일(file://)로 실행 중입니다. 브라우저 보안 정책에 의해 차단될 확률이 높습니다.", true);
+            }
+
+            // 시도할 다양한 URL 체계 (GID 우선순위 상향)
+            const urls = [
+                `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`,
+                `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=csv&gid=${sheetGid}`,
+                `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`,
+                `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`
+            ];
+
+            let lastError = "";
+
+            for (let i = 0; i < urls.length; i++) {
+                try {
+                    addLog(`방식 ${i+1} 시도 중...`);
+                    const response = await fetchWithTimeout(urls[i], { mode: 'cors' });
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const csvData = await response.text();
+                    
+                    if (csvData.includes('<!DOCTYPE html>') || csvData.trim().startsWith('<html')) {
+                        throw new Error('웹 게시 미설정 또는 로그인 필요');
+                    }
+
+                    if (csvData.length < 10) throw new Error('데이터 수신 실패');
+
+                    addLog(`방식 ${i+1} 연동 성공!`);
+                    processData(csvData);
+                    statusArea.classList.add('hidden');
+                    debugPanel.classList.add('hidden');
+                    showToast("데이터를 불러왔습니다.", "📊");
+                    return; 
+
+                } catch (e) {
+                    lastError = e.message;
+                    addLog(`실패: ${e.message}`, true);
+                }
+            }
+
+            // 최종 실패 시 안내 강화
+            statusArea.innerHTML = "❌ 데이터 로드 실패";
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="100%" class="px-6 py-16 text-center">
+                        <div class="flex flex-col items-center gap-4">
+                            <span class="text-5xl">🔒</span>
+                            <h3 class="text-xl font-bold text-slate-800">브라우저 보안 차단 또는 설정 오류</h3>
+                            <div class="text-sm text-slate-600 bg-red-50 p-6 rounded-2xl max-w-2xl text-left leading-relaxed border border-red-100 shadow-sm">
+                                <p class="font-bold text-red-700 mb-3 text-lg underline">해결 방법 (필독):</p>
+                                <ol class="list-decimal ml-5 space-y-3 font-medium">
+                                    <li><b>로컬 파일 보안 차단:</b> HTML 파일을 그냥 더블 클릭하면 작동하지 않을 수 있습니다. <b>VS Code의 Live Server</b>를 사용하거나, 파일을 <b>GitHub Pages, Vercel</b> 등에 업로드하여 확인하세요.</li>
+                                    <li><b>웹에 게시 재확인:</b> 구글 시트에서 [파일] > [공유] > [웹에 게시] 메뉴에서 <b>'게시'</b> 버튼을 정확히 눌렀는지, 형식이 <b>'CSV'</b>인지 다시 확인하세요.</li>
+                                    <li><b>GID 확인:</b> 시트 하단 탭의 주소창에서 <b>gid=463878926</b>이 맞는지 확인해 주세요.</li>
+                                </ol>
+                                <div class="mt-4 p-3 bg-white rounded-lg border border-red-100 text-[10px] font-mono break-all opacity-70">
+                                    Last Error: ${lastError}
+                                </div>
+                            </div>
+                            <button onclick="fetchSheetData()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-xl transition-all">다시 로드 시도</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            showToast("데이터 로드 실패", "⚠️");
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = "";
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim().replace(/^"|"$/g, ""));
+                    current = "";
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim().replace(/^"|"$/g, ""));
+            return result;
+        }
+
+        function processData(csv) {
+            const rows = csv.split(/\r?\n/)
+                            .filter(row => row.trim() !== '')
+                            .map(parseCSVLine);
+
+            if (rows.length > 0) {
+                headers = rows[0].slice(0, 17);
+                allData = rows.slice(1).map(row => {
+                    const filledRow = row.slice(0, 17);
+                    while(filledRow.length < 17) filledRow.push("");
+                    return filledRow;
+                });
+                
+                populateCategoryFilter();
+                renderHeader();
+                applyFilters(); 
+            }
+        }
+
+        function populateCategoryFilter() {
+            const filterSelect = document.getElementById('categoryFilter');
+            const categoryIndex = headers.findIndex(h => h.includes('분류') || h.includes('카테고리') || h.includes('구분'));
+            
+            if (categoryIndex !== -1) {
+                const categories = [...new Set(allData.map(row => row[categoryIndex]))].filter(c => c).sort();
+                filterSelect.innerHTML = '<option value="">전체 카테고리</option>' + 
+                    categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                filterSelect.dataset.index = categoryIndex;
+            }
+        }
+
+        function renderHeader() {
+            const headerRow = document.getElementById('tableHeader');
+            headerRow.innerHTML = headers.map(h => `
+                <th class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 whitespace-nowrap">${h || '열'}</th>
+            `).join('');
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryValue = document.getElementById('categoryFilter').value;
+            const categoryIndex = document.getElementById('categoryFilter').dataset.index;
+
+            filteredData = allData.filter(row => {
+                const matchesSearch = row.some(cell => cell && cell.toString().toLowerCase().includes(searchTerm));
+                const matchesCategory = categoryValue === "" || row[categoryIndex] === categoryValue;
+                return matchesSearch && matchesCategory;
+            });
+
+            renderTable(filteredData, searchTerm);
+            document.getElementById('rowCount').innerText = `총 ${filteredData.length.toLocaleString()}건 데이터 연동됨`;
+        }
+
+        function renderTable(data, searchHighlight = "") {
+            const tableBody = document.getElementById('tableBody');
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="${headers.length || 17}" class="px-6 py-20 text-center text-slate-400 text-sm italic">검색 결과가 없습니다.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = data.map(row => `
+                <tr class="hover:bg-blue-50/40 transition-all cursor-pointer group border-b border-slate-50" onclick="copyRowToMemo(this)">
+                    ${row.map(cell => {
+                        let displayCell = cell || "-";
+                        if (searchHighlight && cell && cell.toString().toLowerCase().includes(searchHighlight)) {
+                            const regex = new RegExp(`(${searchHighlight})`, 'gi');
+                            displayCell = cell.toString().replace(regex, '<span class="highlight">$1</span>');
+                        }
+                        return `<td class="px-6 py-4 text-sm text-slate-600 group-hover:text-blue-700 whitespace-nowrap">${displayCell}</td>`;
+                    }).join('')}
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+        function copyRowToMemo(rowElement) {
+            const cells = Array.from(rowElement.cells).map(c => c.innerText);
+            const memoArea = document.getElementById('memoArea');
+            const itemSummary = cells.slice(0, 5).filter(c => c !== "-").join(' | ');
+            const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            memoArea.value += `• [${timestamp}] ${itemSummary}\n`;
+            memoArea.scrollTop = memoArea.scrollHeight;
+            showToast("메모장에 기록되었습니다.", "📌");
+            saveMemo();
+        }
+
+        function saveMemo() {
+            localStorage.setItem('price_memo_v8', document.getElementById('memoArea').value);
+        }
+
+        function loadMemo() {
+            const saved = localStorage.getItem('price_memo_v8');
+            if (saved) document.getElementById('memoArea').value = saved;
+        }
+
+        function clearMemo() {
+            if(confirm("메모장을 비우시겠습니까?")) {
+                document.getElementById('memoArea').value = "";
+                saveMemo();
+                showToast("메모 초기화", "🗑️");
+            }
+        }
+
+        function copyToClipboard() {
+            const text = document.getElementById('memoArea').value;
+            if(!text) return showToast("복사할 내용이 없습니다.", "❌");
+            const tempElem = document.createElement('textarea');
+            tempElem.value = text;
+            document.body.appendChild(tempElem);
+            tempElem.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempElem);
+            showToast("복사 완료", "📋");
+        }
+
+        function showToast(msg, icon = "✅") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toastIcon').innerText = icon;
+            toast.classList.remove('translate-y-32', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-32', 'opacity-0'), 2500);
+        }
+    </script>
+</body>
+</html>
