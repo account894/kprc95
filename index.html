@@ -21,9 +21,29 @@
             border-radius: 12px;
             background: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.2s ease-in-out;
         }
         
-        .data-table-container::-webkit-scrollbar { width: 8px; height: 8px; }
+        /* 전체모드 스타일 (열 너비 대폭 확장) */
+        .fullscreen-active {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            border-radius: 0 !important;
+            padding: 1.5rem !important;
+            background: #ffffff !important;
+        }
+
+        /* 전체모드 시 테이블 내부 셀 너비 강제 확장 */
+        .fullscreen-active th, .fullscreen-active td {
+            min-width: 180px !important; /* 글자가 잘 보이고 스크롤이 생기도록 최소 너비 설정 */
+            max-width: none !important;
+        }
+
+        .data-table-container::-webkit-scrollbar { width: 10px; height: 10px; }
         .data-table-container::-webkit-scrollbar-track { background: #f1f1f1; }
         .data-table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .data-table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
@@ -31,7 +51,7 @@
         /* 검색어 하이라이트 */
         .highlight { background-color: #fef08a; color: #1e40af; font-weight: bold; padding: 0 2px; border-radius: 2px; }
         
-        /* 텍스트 줄바꿈 방지 및 말줄임 처리 */
+        /* 텍스트 말줄임 처리 (일반 모드용) */
         .cell-content { 
             overflow: hidden; 
             text-overflow: ellipsis; 
@@ -66,7 +86,7 @@
                 <div class="flex flex-col min-w-[200px]">
                     <span class="text-[10px] text-slate-400 font-bold ml-1 mb-1 uppercase tracking-widest">카테고리 필터</span>
                     <select id="categoryFilter" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent block p-2.5 outline-none transition-all font-medium">
-                        <option value="">전체 카테고리▼</option>
+                        <option value="">전체 카테고리</option>
                     </select>
                 </div>
                 <div class="flex flex-col min-w-[350px]">
@@ -85,16 +105,22 @@
 
         <!-- 메인 데이터 테이블 영역 -->
         <div class="w-full space-y-3">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div id="tableWrapper" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="bg-slate-50 px-5 py-2.5 border-b border-slate-100 flex justify-between items-center">
-                    <span id="rowCount" class="text-[11px] font-bold text-slate-500 uppercase tracking-tighter italic">연결 중...</span>
-                    <div id="statusArea" class="hidden text-[11px] text-blue-600 flex items-center gap-2 font-bold uppercase">
-                        <div class="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                        Syncing Database
+                    <div class="flex items-center gap-4">
+                        <span id="rowCount" class="text-[11px] font-bold text-slate-500 uppercase tracking-tighter italic">연결 중...</span>
+                        <div id="statusArea" class="hidden text-[11px] text-blue-600 flex items-center gap-2 font-bold uppercase">
+                            <div class="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            Syncing Database
+                        </div>
                     </div>
+                    <!-- 전체보기 버튼 -->
+                    <button onclick="toggleFullScreen()" class="flex items-center gap-1.5 px-4 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all shadow-sm">
+                        <span id="fsIcon">🖥️</span> <span id="fsText">전체보기</span>
+                    </button>
                 </div>
 
-                <div class="data-table-container">
+                <div id="dataTableContainer" class="data-table-container">
                     <table class="w-full divide-y divide-slate-200 text-left border-collapse" id="dataTable">
                         <thead class="bg-white sticky top-0 z-20 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                             <tr id="tableHeader" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -163,6 +189,26 @@
             loadMemo();
             fetchSheetData();
         };
+
+        // 전체보기 토글 기능 (너비 확장 로직 포함)
+        function toggleFullScreen() {
+            const container = document.getElementById('dataTableContainer');
+            const fsIcon = document.getElementById('fsIcon');
+            const fsText = document.getElementById('fsText');
+            
+            if (container.classList.contains('fullscreen-active')) {
+                container.classList.remove('fullscreen-active');
+                fsIcon.innerText = "🖥️";
+                fsText.innerText = "전체보기";
+                document.body.style.overflow = "auto";
+            } else {
+                container.classList.add('fullscreen-active');
+                fsIcon.innerText = "✖️";
+                fsText.innerText = "닫기";
+                document.body.style.overflow = "hidden";
+                showToast("전체보기 모드가 활성화되었습니다. (가로 스크롤 가능)");
+            }
+        }
 
         async function fetchWithTimeout(url, options = {}, timeout = 12000) {
             const controller = new AbortController();
@@ -243,7 +289,6 @@
                             .map(parseCSVLine);
 
             if (rows.length > 0) {
-                // A-S열 (0-18 인덱스)
                 headers = rows[0].slice(0, 19);
                 allData = rows.slice(1).map(row => {
                     const filledRow = row.slice(0, 19);
@@ -257,15 +302,12 @@
             }
         }
 
-        // 카테고리 필터를 B열(인덱스 1) 기준으로 고정 생성
         function populateCategoryFilter() {
             const filterSelect = document.getElementById('categoryFilter');
-            const categoryIndex = 1; // B열 고정
-            
-            // B열 데이터 중 중복 제거 및 정렬
+            const categoryIndex = 1; 
             const categories = [...new Set(allData.map(row => row[categoryIndex]))].filter(c => c).sort();
             
-            filterSelect.innerHTML = '<option value="">전체 카테고리 (B열)</option>' + 
+            filterSelect.innerHTML = '<option value="">전체 카테고리</option>' + 
                 categories.map(c => `<option value="${c}">${c}</option>`).join('');
             filterSelect.dataset.index = categoryIndex;
         }
@@ -282,7 +324,7 @@
         function applyFilters() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const categoryValue = document.getElementById('categoryFilter').value;
-            const categoryIndex = 1; // B열 기준
+            const categoryIndex = 1; 
 
             filteredData = allData.filter(row => {
                 const matchesSearch = row.some(cell => cell && cell.toString().toLowerCase().includes(searchTerm));
@@ -310,6 +352,7 @@
                             displayCell = cell.toString().replace(regex, '<span class="highlight">$1</span>');
                         }
                         
+                        // 일반 모드에서는 A-M(0-12)은 타이트하게, 나머지는 기본폭 적용
                         const cellStyle = idx <= 12 ? 'px-1.5 py-3 text-[11.5px]' : 'px-4 py-3 text-[12.5px]';
                         const maxWidth = idx <= 12 ? 'max-w-[130px]' : 'max-w-[250px]';
 
@@ -326,12 +369,9 @@
 
         document.getElementById('searchInput').addEventListener('input', applyFilters);
 
-        // 메모장에 전체 행 정보 기록 (A~S열)
         function copyRowToMemo(rowElement) {
             const cells = Array.from(rowElement.cells).map(c => c.innerText);
             const memoArea = document.getElementById('memoArea');
-            
-            // A~S열 전체 데이터 조인
             const fullRowData = cells.join(' | ');
             const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
@@ -352,7 +392,6 @@
         }
 
         function clearMemo() {
-            // 확인 창 없이 즉시 삭제
             document.getElementById('memoArea').value = "";
             saveMemo();
             showToast("메모가 초기화되었습니다.", "🗑️");
