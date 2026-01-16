@@ -14,6 +14,9 @@
         .data-table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .highlight { background-color: #fef08a; color: #1e40af; font-weight: bold; padding: 0 2px; border-radius: 2px; }
         
+        /* 테이블 텍스트가 너무 길어지지 않게 조절 */
+        .cell-truncate { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
         @media print {
             body * { visibility: hidden; }
             #memoArea, #memoArea * { visibility: visible; }
@@ -29,11 +32,11 @@
             <div>
                 <div class="flex items-center gap-3 mb-1">
                     <span class="text-3xl">🏢</span>
-                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">종합 물가정보 검색 포털( SAMJIN 업체전용 ) </h1>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">종합 물가정보 검색 포털</h1>
                 </div>
                 <p class="text-slate-500 text-sm flex items-center gap-2">
                     <span class="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                    데이터베이스: <span class="font-medium text-slate-700 text-blue-600">유통물가 DB</span> 연동 모드
+                    데이터베이스: <span class="font-medium text-slate-700 text-blue-600">Google Cloud DB</span> 연동 모드 (A-S열)
                 </p>
             </div>
             
@@ -76,7 +79,7 @@
                     <div class="data-table-container">
                         <table class="min-w-full divide-y divide-slate-200 text-left" id="dataTable">
                             <thead class="bg-white sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
-                                <tr id="tableHeader" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <tr id="tableHeader" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-slate-100" id="tableBody">
@@ -84,7 +87,7 @@
                                     <td colspan="100%" class="px-6 py-32 text-center">
                                         <div class="flex flex-col items-center gap-4">
                                             <div id="loadingSpinner" class="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin"></div>
-                                            <p id="loadingText" class="text-slate-400">데이터 로딩 방식을 최적화하고 있습니다...</p>
+                                            <p id="loadingText" class="text-slate-400">A열부터 S열까지의 데이터를 최적화하여 불러오고 있습니다...</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -132,7 +135,7 @@
         <span id="toastMsg">메시지</span>
     </div>
 
-    <!-- 설정값 (정확한 ID와 GID 적용) -->
+    <!-- 설정값 -->
     <input type="hidden" id="sheetId" value="1EXrDeW4XOslHDwDliZ11esmpkHeH8cu956XeZOfu4Aw">
     <input type="hidden" id="sheetName" value="Sheet1">
     <input type="hidden" id="sheetGid" value="463878926">
@@ -179,19 +182,12 @@
             debugPanel.innerHTML = "";
             debugPanel.classList.add('hidden');
             statusArea.classList.remove('hidden');
-            addLog("데이터 연동 프로세스 시작...");
+            addLog("데이터 연동 시작 (A-S열)...");
 
-            // 로컬 파일 경로인 경우 안내 로그 추가
-            if (window.location.protocol === 'file:') {
-                addLog("감지: 로컬 파일(file://)로 실행 중입니다. 브라우저 보안 정책에 의해 차단될 확률이 높습니다.", true);
-            }
-
-            // 시도할 다양한 URL 체계 (GID 우선순위 상향)
             const urls = [
                 `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`,
                 `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=csv&gid=${sheetGid}`,
-                `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`,
-                `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`
+                `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`
             ];
 
             let lastError = "";
@@ -200,22 +196,17 @@
                 try {
                     addLog(`방식 ${i+1} 시도 중...`);
                     const response = await fetchWithTimeout(urls[i], { mode: 'cors' });
-                    
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    
                     const csvData = await response.text();
                     
                     if (csvData.includes('<!DOCTYPE html>') || csvData.trim().startsWith('<html')) {
-                        throw new Error('웹 게시 미설정 또는 로그인 필요');
+                        throw new Error('웹 게시 미설정');
                     }
 
-                    if (csvData.length < 10) throw new Error('데이터 수신 실패');
-
-                    addLog(`방식 ${i+1} 연동 성공!`);
                     processData(csvData);
                     statusArea.classList.add('hidden');
                     debugPanel.classList.add('hidden');
-                    showToast("데이터를 불러왔습니다.", "📊");
+                    showToast("S열까지 데이터 로드 완료", "📊");
                     return; 
 
                 } catch (e) {
@@ -224,31 +215,8 @@
                 }
             }
 
-            // 최종 실패 시 안내 강화
-            statusArea.innerHTML = "❌ 데이터 로드 실패";
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="100%" class="px-6 py-16 text-center">
-                        <div class="flex flex-col items-center gap-4">
-                            <span class="text-5xl">🔒</span>
-                            <h3 class="text-xl font-bold text-slate-800">브라우저 보안 차단 또는 설정 오류</h3>
-                            <div class="text-sm text-slate-600 bg-red-50 p-6 rounded-2xl max-w-2xl text-left leading-relaxed border border-red-100 shadow-sm">
-                                <p class="font-bold text-red-700 mb-3 text-lg underline">해결 방법 (필독):</p>
-                                <ol class="list-decimal ml-5 space-y-3 font-medium">
-                                    <li><b>로컬 파일 보안 차단:</b> HTML 파일을 그냥 더블 클릭하면 작동하지 않을 수 있습니다. <b>VS Code의 Live Server</b>를 사용하거나, 파일을 <b>GitHub Pages, Vercel</b> 등에 업로드하여 확인하세요.</li>
-                                    <li><b>웹에 게시 재확인:</b> 구글 시트에서 [파일] > [공유] > [웹에 게시] 메뉴에서 <b>'게시'</b> 버튼을 정확히 눌렀는지, 형식이 <b>'CSV'</b>인지 다시 확인하세요.</li>
-                                    <li><b>GID 확인:</b> 시트 하단 탭의 주소창에서 <b>gid=463878926</b>이 맞는지 확인해 주세요.</li>
-                                </ol>
-                                <div class="mt-4 p-3 bg-white rounded-lg border border-red-100 text-[10px] font-mono break-all opacity-70">
-                                    Last Error: ${lastError}
-                                </div>
-                            </div>
-                            <button onclick="fetchSheetData()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-xl transition-all">다시 로드 시도</button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            showToast("데이터 로드 실패", "⚠️");
+            statusArea.innerHTML = "❌ 연동 실패";
+            tableBody.innerHTML = `<tr><td colspan="100%" class="px-6 py-16 text-center text-red-500 font-bold">로드 실패: ${lastError}</td></tr>`;
         }
 
         function parseCSVLine(line) {
@@ -276,10 +244,11 @@
                             .map(parseCSVLine);
 
             if (rows.length > 0) {
-                headers = rows[0].slice(0, 17);
+                // A열(0)부터 S열(18)까지 19개 열 확보
+                headers = rows[0].slice(0, 19);
                 allData = rows.slice(1).map(row => {
-                    const filledRow = row.slice(0, 17);
-                    while(filledRow.length < 17) filledRow.push("");
+                    const filledRow = row.slice(0, 19);
+                    while(filledRow.length < 19) filledRow.push("");
                     return filledRow;
                 });
                 
@@ -303,8 +272,11 @@
 
         function renderHeader() {
             const headerRow = document.getElementById('tableHeader');
-            headerRow.innerHTML = headers.map(h => `
-                <th class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 whitespace-nowrap">${h || '열'}</th>
+            // A-M(0-12)은 좁은 폭 유지, N-S(13-18)은 기본 폭
+            headerRow.innerHTML = headers.map((h, idx) => `
+                <th class="px-2 py-4 border-b border-slate-100 bg-slate-50/50 whitespace-nowrap ${idx <= 12 ? 'text-[11px]' : 'text-xs'} font-bold">
+                    ${h || (String.fromCharCode(65 + idx))}
+                </th>
             `).join('');
         }
 
@@ -320,25 +292,31 @@
             });
 
             renderTable(filteredData, searchTerm);
-            document.getElementById('rowCount').innerText = `총 ${filteredData.length.toLocaleString()}건 데이터 연동됨`;
+            document.getElementById('rowCount').innerText = `현재 조회: ${filteredData.length.toLocaleString()}건`;
         }
 
         function renderTable(data, searchHighlight = "") {
             const tableBody = document.getElementById('tableBody');
             if (data.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="${headers.length || 17}" class="px-6 py-20 text-center text-slate-400 text-sm italic">검색 결과가 없습니다.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="19" class="px-6 py-20 text-center text-slate-400 text-sm">결과가 없습니다.</td></tr>`;
                 return;
             }
 
             tableBody.innerHTML = data.map(row => `
                 <tr class="hover:bg-blue-50/40 transition-all cursor-pointer group border-b border-slate-50" onclick="copyRowToMemo(this)">
-                    ${row.map(cell => {
+                    ${row.map((cell, idx) => {
                         let displayCell = cell || "-";
                         if (searchHighlight && cell && cell.toString().toLowerCase().includes(searchHighlight)) {
                             const regex = new RegExp(`(${searchHighlight})`, 'gi');
                             displayCell = cell.toString().replace(regex, '<span class="highlight">$1</span>');
                         }
-                        return `<td class="px-6 py-4 text-sm text-slate-600 group-hover:text-blue-700 whitespace-nowrap">${displayCell}</td>`;
+                        // A-M 열은 폰트 크기를 더 줄이고 패딩을 최소화하여 한 화면에 들어오게 함
+                        return `
+                            <td class="${idx <= 12 ? 'px-2 py-3 text-[12px]' : 'px-4 py-3 text-sm'} text-slate-600 group-hover:text-blue-700 whitespace-nowrap">
+                                <div class="${idx <= 12 ? 'max-w-[100px]' : 'max-w-[180px]'} truncate" title="${cell}">
+                                    ${displayCell}
+                                </div>
+                            </td>`;
                     }).join('')}
                 </tr>
             `).join('');
@@ -354,37 +332,37 @@
             
             memoArea.value += `• [${timestamp}] ${itemSummary}\n`;
             memoArea.scrollTop = memoArea.scrollHeight;
-            showToast("메모장에 기록되었습니다.", "📌");
+            showToast("기록 완료", "📌");
             saveMemo();
         }
 
         function saveMemo() {
-            localStorage.setItem('price_memo_v8', document.getElementById('memoArea').value);
+            localStorage.setItem('price_memo_v9', document.getElementById('memoArea').value);
         }
 
         function loadMemo() {
-            const saved = localStorage.getItem('price_memo_v8');
+            const saved = localStorage.getItem('price_memo_v9');
             if (saved) document.getElementById('memoArea').value = saved;
         }
 
         function clearMemo() {
-            if(confirm("메모장을 비우시겠습니까?")) {
+            if(confirm("메모장을 초기화하시겠습니까?")) {
                 document.getElementById('memoArea').value = "";
                 saveMemo();
-                showToast("메모 초기화", "🗑️");
+                showToast("초기화됨", "🗑️");
             }
         }
 
         function copyToClipboard() {
             const text = document.getElementById('memoArea').value;
-            if(!text) return showToast("복사할 내용이 없습니다.", "❌");
+            if(!text) return showToast("내용 없음", "❌");
             const tempElem = document.createElement('textarea');
             tempElem.value = text;
             document.body.appendChild(tempElem);
             tempElem.select();
             document.execCommand('copy');
             document.body.removeChild(tempElem);
-            showToast("복사 완료", "📋");
+            showToast("복사됨", "📋");
         }
 
         function showToast(msg, icon = "✅") {
