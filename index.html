@@ -162,7 +162,8 @@
         <div class="mb-8 border-b border-slate-200">
             <div class="flex gap-2 overflow-x-auto">
                 <button class="tab-button active whitespace-nowrap" onclick="switchTab('matching')">🎯 매칭 시스템</button>
-                <button class="tab-button whitespace-nowrap" onclick="switchTab('db-manager')">📊 DB 관리</button>
+                <button class="tab-button whitespace-nowrap" onclick="switchTab('db-manager')">📊 DB 업데이트</button>
+                <button class="tab-button whitespace-nowrap" onclick="switchTab('db-search')">🔍 DB 검색</button>
                 <button class="tab-button whitespace-nowrap" onclick="switchTab('pumsum-calculator')">🏗️ 품셈 계산기</button>
                 <button class="tab-button whitespace-nowrap" onclick="switchTab('n8n-config')">⚙️ 관리자 설정</button>
             </div>
@@ -275,6 +276,11 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                             품목 추가
                         </button>
+                        <!-- Added Apply All Button -->
+                        <button onclick="applyAllDBItems()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-700 transition-all flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            모두 적용
+                        </button>
                         <!-- Added Delete All Button -->
                         <button onclick="openDeleteAllModal()" class="bg-rose-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-rose-700 transition-all flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -296,13 +302,14 @@
                         <thead>
                             <tr>
                                 <th style="width: 5%">#</th>
-                                <th style="width: 20%">품명</th>
-                                <th style="width: 20%">규격</th>
+                                <th style="width: 18%">품명</th>
+                                <th style="width: 18%">규격</th>
                                 <th style="width: 8%">단위</th>
                                 <th style="width: 10%">재료비</th>
                                 <th style="width: 10%">노무비</th>
-                                <th style="width: 15%">비고</th>
-                                <th style="width: 12%">작업</th>
+                                <th style="width: 13%">비고</th>
+                                <th style="width: 10%">작업</th>
+                                <th style="width: 8%">적용</th>
                             </tr>
                         </thead>
                         <tbody id="dbTableBody">
@@ -325,6 +332,86 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             DB 엑셀 다운로드
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: DB Search (Redesigned with Split Layout) -->
+        <div id="tab-db-search" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <!-- Left Panel: Search & Guideline -->
+                <div class="lg:col-span-4 flex flex-col gap-6 sticky top-6">
+                    <!-- Search Card -->
+                    <div class="glass-card p-6 rounded-3xl shadow-xl">
+                        <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            DB 검색 설정
+                        </h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">검색어 (품명/규격)</label>
+                                <input type="text" id="externalSearchInput" placeholder="검색어 입력 (엔터)..." class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all" onkeypress="if(event.key === 'Enter') searchExternalDB()">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">코드 검색</label>
+                                <select id="externalCodeFilter" class="w-full bg-white border border-slate-300 rounded-xl p-3 text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer" onchange="searchExternalDB()">
+                                    <option value="">코드 선택</option>
+                                    <!-- Options will be loaded automatically -->
+                                </select>
+                            </div>
+
+                            <button onclick="searchExternalDB()" id="externalSearchBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg">
+                                검색 실행
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Guideline Card (Replacing Notepad) -->
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
+                        <h3 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            코드 가이드
+                        </h3>
+                        <p class="text-sm text-blue-800 mb-2">아래 코드를 확인 및 참조하세요.</p>
+                        <div class="space-y-1 text-sm text-blue-700 font-mono bg-blue-100/50 p-3 rounded">
+                            <div class="flex justify-between"><span>등록된 코드: ckw, 세한</span> <span class="font-bold">(공통)</span></div>
+                            <div class="flex justify-between"><span>신규 코드 생성 -> DB업데이트 Tab</span> <span class="font-bold"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Results -->
+                <div class="lg:col-span-8">
+                    <div class="glass-card p-6 rounded-3xl shadow-xl flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-slate-800">검색 결과</h2>
+                            <span id="extDbStatus" class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">데이터 대기중</span>
+                        </div>
+                        
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl relative bg-white">
+                            <table class="w-full text-sm text-left border-collapse" id="externalResultTable">
+                                <thead class="bg-slate-100 text-slate-700 font-bold uppercase sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">품명</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">규격</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 text-center whitespace-nowrap">단위</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 text-right whitespace-nowrap">재료비</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 text-right whitespace-nowrap">노무비</th>
+                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">비고</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="externalResultBody" class="bg-white divide-y divide-slate-100">
+                                   <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-3 flex items-center gap-1 font-medium bg-indigo-50 p-3 rounded-xl text-indigo-600 border border-indigo-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Tip: 검색 결과를 마우스로 드래그 선택 후 복사(Ctrl+C)하여 엑셀에 바로 붙여넣기(Ctrl+V) 하세요.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -828,6 +915,8 @@
                 renderDBTable();
             } else if (tabName === 'n8n-config') {
                 loadN8nConfig();
+            } else if (tabName === 'db-search') {
+                initExternalDB();
             }
         }
 
@@ -1016,17 +1105,29 @@
                     <td><input type="number" value="${item.E}" onchange="updateDBItem(${idx}, 'E', this.value)"></td>
                     <td><input type="text" value="${item.F || ''}" onchange="updateDBItem(${idx}, 'F', this.value)"></td>
                     <td><button onclick="openConfirmDelete(${idx})" class="text-rose-600 hover:text-rose-800 font-semibold">삭제</button></td>
+                    <td><button onclick="applyDBItem(${idx})" class="text-blue-600 hover:text-blue-800 font-semibold">적용</button></td>
                 `;
                 tbody.appendChild(tr);
             });
             document.getElementById('dbCount').textContent = filteredDB.length; // Show filtered count or total? Usually users expect filtered count.
         }
         function updateDBItem(idx, field, value) {
+            // 1. 수정 전 데이터 백업 (Deep Copy)
+            const oldItem = JSON.parse(JSON.stringify(localDB[idx]));
+
+            // 2. 로컬 데이터 업데이트
             localDB[idx][field] = value;
             localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            addLog(`품목 수정: ${localDB[idx].A}`, 'success');
-            if (n8nConfig.autoSync && n8nConfig.webhookUpdate) sendToN8n(n8nConfig.webhookUpdate, localDB[idx], 'update');
-            if (field === 'F') updateCategoryOptions(); // Update filters if remarks change
+            
+            // 3. 로그 및 카테고리 업데이트
+            addLog(`품목 수정: ${oldItem.A} -> ${localDB[idx].A} (${field} 변경)`, 'success');
+            if (field === 'F') updateCategoryOptions();
+
+            // 4. n8n 전송 (수정 전 데이터와 수정 후 데이터를 함께 전달)
+            if (n8nConfig.autoSync && n8nConfig.webhookUpdate) {
+                // update 액션일 경우, oldData를 4번째 인자로 전달
+                sendToN8n(n8nConfig.webhookUpdate, localDB[idx], 'update', oldItem);
+            }
         }
         
         // Revised Delete Item Logic
@@ -1051,6 +1152,28 @@
             if (n8nConfig.autoSync && n8nConfig.webhookDelete) sendToN8n(n8nConfig.webhookDelete, deletedItem, 'delete');
             
             closeConfirmModal();
+        }
+
+        // New Apply Logic
+        function applyDBItem(idx) {
+            const appliedItem = localDB[idx];
+            localDB.splice(idx, 1);
+            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
+            renderDBTable();
+            addLog(`품목 적용 완료 (로컬 삭제): ${appliedItem.A}`, 'success');
+        }
+
+        function applyAllDBItems() {
+            if (localDB.length === 0) {
+                customAlert("적용할 데이터가 없습니다.");
+                return;
+            }
+            const count = localDB.length;
+            localDB = [];
+            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
+            renderDBTable();
+            addLog(`모두 적용 완료: ${count}개 항목 로컬 캐시 삭제됨`, 'success');
+            customAlert("모든 품목이 업데이트 &적용되었습니다.");
         }
 
         // ... existing modal actions ...
@@ -1098,16 +1221,38 @@
             document.getElementById('deleteAllPassword').value = '';
         }
 
-        function checkDeleteAll() {
+        async function checkDeleteAll() {
             const pwd = document.getElementById('deleteAllPassword').value;
             if (pwd === "0001") {
-                const count = localDB.length;
+                const itemsToDelete = JSON.parse(JSON.stringify(localDB)); // Deep copy just in case
+                const count = itemsToDelete.length;
+                
+                // UI & Local Storage Clear
                 localDB = [];
                 localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
                 renderDBTable();
-                addLog(`DB 전체 초기화 완료: ${count}개 항목 삭제됨`, 'warn');
                 closeDeleteAllModal();
-                customAlert("모든 데이터가 삭제되었습니다.");
+                
+                addLog(`로컬 DB 전체 삭제 완료 (${count}건)`, 'warn');
+
+                // n8n Sync
+                if (n8nConfig.autoSync && n8nConfig.webhookDelete) {
+                    addLog(`n8n 서버 데이터 삭제 요청 시작... (${count}건)`, 'info');
+                    
+                    // Show a non-blocking alert or toast
+                    // Since customAlert is blocking (modal), we show it at the end or start.
+                    // Let's show it at the start saying it's processing in background.
+                    
+                    // Process items
+                    for (const item of itemsToDelete) {
+                        await sendToN8n(n8nConfig.webhookDelete, item, 'delete');
+                    }
+                    
+                    addLog(`n8n 서버 데이터 삭제 작업 종료`, 'success');
+                    customAlert(`모든 데이터가 삭제되었습니다.\n(업데이트 & 동기화 완료)`);
+                } else {
+                    customAlert("모든 데이터가 삭제되었습니다.\n(업데이트 & 동기화 완료)");
+                }
             } else {
                 customAlert("비밀번호가 올바르지 않습니다.");
                 document.getElementById('deleteAllPassword').value = '';
@@ -1116,14 +1261,45 @@
         }
 
         // ... existing n8n logic ...
-        async function sendToN8n(webhookUrl, data, action) {
+        async function sendToN8n(webhookUrl, data, action, oldData = null) {
             if (!webhookUrl) return;
             try {
+                let payload = {
+                    action: action,
+                    timestamp: new Date().toISOString(),
+                    data: { 
+                        품명: data.A, 
+                        규격: data.B, 
+                        단위: data.C, 
+                        재료비: data.D, 
+                        노무비: data.E, 
+                        비고: data.F 
+                    }
+                };
+
+                // 수정(Update) 액션일 경우, 검색용(수정 전) 데이터 추가 -> n8n에서 이 값을 키로 사용하여 행을 찾음
+                if (action === 'update' && oldData) {
+                    payload.lookup = {
+                        품명: oldData.A,
+                        규격: oldData.B
+                    };
+                    // 필요 시 전체 oldData도 포함
+                    payload.oldData = {
+                        품명: oldData.A, 
+                        규격: oldData.B, 
+                        단위: oldData.C, 
+                        재료비: oldData.D, 
+                        노무비: oldData.E, 
+                        비고: oldData.F 
+                    };
+                }
+
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, timestamp: new Date().toISOString(), data: { 품명: data.A, 규격: data.B, 단위: data.C, 재료비: data.D, 노무비: data.E, 비고: data.F } })
+                    body: JSON.stringify(payload)
                 });
+                
                 if (response.ok) addLog(`n8n 동기화 성공: ${action} - ${data.A}`, 'success');
                 else addLog(`n8n 동기화 실패: ${response.statusText}`, 'error');
             } catch (err) { addLog(`n8n 연동 오류: ${err.message}`, 'error'); }
@@ -1296,6 +1472,117 @@
                 XLSX.writeFile(wb, fileName);
                 addLog(`엑셀 파일 다운로드 완료: ${fileName}`, 'success');
             } catch (err) { addLog("다운로드 중 오류 발생: " + err.message, 'error'); }
+        }
+
+        // New Feature: External DB Search (Updated)
+        const EXTERNAL_SHEET_ID = "1GaUzextj8jdry2iegBK7EiWDm1VASX8od3o9tP7DoZU";
+        const EXTERNAL_SHEET_NAME = "DB더보기";
+        let externalDBData = [];
+        let isExternalDBLoaded = false;
+
+        async function initExternalDB() {
+            if (isExternalDBLoaded) return;
+            
+            const filterSelect = document.getElementById('externalCodeFilter');
+            const status = document.getElementById('extDbStatus');
+            
+            status.innerHTML = '<span class="animate-pulse text-indigo-500">DB 연결 중...</span>';
+            status.className = "text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100";
+            filterSelect.disabled = true;
+
+            try {
+                const url = `https://opensheet.elk.sh/${EXTERNAL_SHEET_ID}/${encodeURIComponent(EXTERNAL_SHEET_NAME)}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Network Error");
+                
+                externalDBData = await res.json();
+                
+                // Populate Filter with Unique Codes from Column G ('코드', 'Code', 'code' assumed keys)
+                const codes = [...new Set(externalDBData.map(r => getValueByKeywords(r, ['코드', 'code', 'Code'])).filter(c => c && String(c).trim() !== ""))].sort();
+                
+                filterSelect.innerHTML = '<option value="">전체 코드(선택)</option>';
+                codes.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    filterSelect.appendChild(opt);
+                });
+                
+                filterSelect.disabled = false;
+                isExternalDBLoaded = true;
+                status.innerHTML = `<span class="text-emerald-600">✅ 로드됨</span>`;
+                status.className = "text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100";
+                
+                addLog(`외부 DB 연결 성공`, 'success');
+                
+            } catch (e) {
+                console.error(e);
+                status.innerText = "연결 실패";
+                status.className = "text-xs font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100";
+                addLog(`외부 DB 연결 실패: ${e.message}`, 'error');
+            }
+        }
+
+        function searchExternalDB() {
+            if (!isExternalDBLoaded) {
+                initExternalDB().then(searchExternalDB);
+                return;
+            }
+
+            const input = document.getElementById("externalSearchInput");
+            const filterSelect = document.getElementById("externalCodeFilter");
+            const keyword = input.value.toLowerCase().trim();
+            const selectedCode = filterSelect.value;
+            const tbody = document.getElementById("externalResultBody");
+
+            // Filter Logic
+            const filtered = externalDBData.filter(r => {
+                const matchKeyword = !keyword || (
+                    (r['품명'] && String(r['품명']).toLowerCase().includes(keyword)) ||
+                    (r['규격'] && String(r['규격']).toLowerCase().includes(keyword))
+                );
+                
+                const codeVal = getValueByKeywords(r, ['코드', 'code', 'Code']);
+                const matchCode = !selectedCode || (String(codeVal) === selectedCode);
+                
+                return matchKeyword && matchCode;
+            });
+
+            tbody.innerHTML = "";
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-slate-400 font-medium">검색 결과가 없습니다.</td></tr>';
+            } else {
+                // Limit rendering to 100 items for performance if needed, or show all
+                const displayItems = filtered.slice(0, 200); 
+                
+                displayItems.forEach(r => {
+                    const tr = document.createElement("tr");
+                    tr.className = "hover:bg-indigo-50 transition-colors cursor-pointer group";
+                    const codeVal = getValueByKeywords(r, ['코드', 'code', 'Code']);
+                    
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 border-b border-slate-100 font-medium text-slate-800">${r['품명']||''}</td>
+                        <td class="px-4 py-3 border-b border-slate-100 text-slate-600">${r['규격']||''}</td>
+                        <td class="px-4 py-3 border-b border-slate-100 text-center text-slate-500">${r['단위']||''}</td>
+                        <td class="px-4 py-3 border-b border-slate-100 text-right font-mono text-slate-700 bg-slate-50/30">${r['재료비']||''}</td>
+                        <td class="px-4 py-3 border-b border-slate-100 text-right font-mono text-slate-700 bg-slate-50/30">${r['노무비']||''}</td>
+                        <td class="px-4 py-3 border-b border-slate-100 text-slate-500 text-xs max-w-[150px] truncate">${r['비고']||''}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                if(filtered.length > 200) {
+                      addLog(`검색 결과 ${filtered.length}건 중 상위 200건만 표시됩니다.`, 'info');
+                }
+            }
+        }
+
+        // Notepad persistence
+        const notepad = document.getElementById('dbNotepad');
+        if(notepad) {
+            notepad.value = localStorage.getItem('samjin_notepad') || '';
+            notepad.addEventListener('input', (e) => localStorage.setItem('samjin_notepad', e.target.value));
         }
 
         // Event Listeners
