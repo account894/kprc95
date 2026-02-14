@@ -3,1874 +3,515 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAMJIN Quotation System v6.0 - Enhanced</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <title>자재/노임 단가 추이 현황 (정보마당)</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Noto+Sans+KR:wght@400;700&family=JetBrains+Mono&display=swap');
-        
-        :root {
-            --primary: #4f46e5;
-            --secondary: #10b981;
-        }
-
+        /* 기본 스타일 초기화 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
-            font-family: 'Noto Sans KR', 'Inter', sans-serif; 
-            background-color: #f8fafc;
-        }
-
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        .log-container::-webkit-scrollbar { width: 6px; }
-        .log-container::-webkit-scrollbar-track { background: #1e293b; }
-        .log-container::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
-        }
-
-        @keyframes pulse-soft {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(0.98); }
-        }
-        .animate-pulse-soft { animation: pulse-soft 2.5s infinite ease-in-out; }
-        
-        .matching-active {
-            background: linear-gradient(90deg, #4f46e5, #818cf8, #4f46e5);
-            background-size: 200% 100%;
-            animation: gradient-move 2s linear infinite;
-        }
-        @keyframes gradient-move {
-            0% { background-position: 100% 0%; }
-            100% { background-position: -100% 0%; }
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
+            font-family: 'Noto Sans KR', sans-serif; 
+            background-color: #f0f2f5; 
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
+            justify-content: center; 
+            padding-top: 30px;     
+            padding-bottom: 30px;  
         }
 
-        .modal-content {
-            background: white;
-            border-radius: 1.5rem;
-            max-width: 800px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        /* 메인 컨테이너: 개방감을 위해 너비 축소 및 내부 여백 확대 */
+        .dashboard-container {
+            width: 75%;              /* 85% -> 75% 양옆 여백 대폭 확보 */
+            max-width: 1200px;       /* 최대 너비 제한으로 시선 집중 */
+            height: 100%;            
+            background-color: #fff;  
+            border-radius: 20px;     /* 모서리를 더 둥글게 */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); /* 그림자 강화 */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;        
+            padding: 0 0 20px 0;     /* 하단 패딩 */
         }
 
-        .db-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+        /* 상단 영역 (내부 패딩 넉넉하게) */
+        .top-section {
+            padding: 30px 40px 0 40px; /* 내부 여백 확대 */
+            flex-shrink: 0; 
         }
 
-        .db-table th {
-            background: #f1f5f9;
-            padding: 12px;
-            text-align: left;
-            font-weight: 700;
-            font-size: 0.85rem;
-            color: #475569;
-            border-bottom: 2px solid #e2e8f0;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+        /* 헤더 스타일 */
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
         }
-
-        .db-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 0.9rem;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-
-        .db-table tr:hover {
-            background: #f8fafc;
+        .header-title {
+            font-size: 24px;
+            font-weight: 800; /* 폰트 더 굵게 */
+            color: #111;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.5px;
         }
-
-        .db-table input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #e2e8f0;
+        .update-badge {
+            font-size: 13px;
+            background: #f1f3f5;
+            padding: 6px 10px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            color: #495057;
+            font-weight: 500;
         }
 
-        .db-table input:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        /* 컨트롤 영역 */
+        .header-controls {
+            display: flex;
+            gap: 12px;
         }
-
-        .tab-button {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            background: transparent;
-            color: #64748b;
-            font-weight: 600;
+        .sheet-select {
+            padding: 10px 14px;
+            border: 1px solid #dfe1e5;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
             cursor: pointer;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
+            min-width: 160px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .sheet-select:hover { border-color: #4f46e5; }
+        
+        .sync-btn {
+            padding: 10px 20px; 
+            background: #4f46e5; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .sync-btn:hover { background: #4338ca; transform: translateY(-1px); }
+        .sync-btn:active { transform: translateY(0); }
+
+        /* --- Top 3 랭킹 섹션 --- */
+        .ranking-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr; 
+            gap: 25px; /* 간격 확대 */
+            margin-bottom: 30px;
+        }
+        .rank-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #edf2f7;
+        }
+        .rank-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .rank-title.up { color: #e11d48; } 
+        .rank-title.down { color: #2563eb; }
+
+        .rank-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            transition: transform 0.2s;
+        }
+        .rank-item:hover { transform: translateX(2px); }
+        
+        .rank-item-name { font-weight: 500; color: #333; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rank-item-spec { font-size: 12px; color: #888; max-width: 20%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rank-item-val { font-weight: 700; font-feature-settings: "tnum"; white-space: nowrap; }
+        .rank-empty { font-size: 14px; color: #999; text-align: center; padding: 10px 0; }
+
+        /* 테이블 영역 컨테이너 (여백 확보용) */
+        .table-area-wrapper {
+            padding: 0 40px; /* 헤더와 리스트 좌우 여백 */
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
-        .tab-button.active {
-            color: #4f46e5;
-            border-bottom-color: #4f46e5;
+        /* 테이블 헤더 (고정) */
+        .table-header {
+            display: grid;
+            /* A1(2), A2(3), A3(1), A4(1.5) 비율 */
+            grid-template-columns: 2fr 3fr 1fr 1.5fr; 
+            background-color: #eaecf0;
+            font-weight: 700;
+            color: #4b5563;
+            padding: 14px 0; /* 상하 패딩 확대 */
+            text-align: center;
+            border-top: 1px solid #d1d5db;
+            border-bottom: 1px solid #d1d5db;
+            border-radius: 8px 8px 0 0;
+            
+            /* [중요] 스크롤바 너비(8px)만큼 우측 패딩을 주어 데이터 열과 정렬을 맞춤 */
+            padding-right: 8px; 
+        }
+        .th-cell { padding: 0 20px; } /* 셀 내부 여백 확대 */
+
+        /* 가상 스크롤 뷰포트 */
+        .virtual-scroll-viewport {
+            flex: 1; 
+            overflow-y: auto;
+            position: relative;
+            background: white;
+            border-left: 1px solid #eee; /* 시각적 경계 */
+            border-right: 1px solid #eee;
         }
 
-        .tab-button:hover {
-            color: #4f46e5;
-        }
+        /* 스크롤바 커스텀 */
+        .virtual-scroll-viewport::-webkit-scrollbar { width: 8px; }
+        .virtual-scroll-viewport::-webkit-scrollbar-track { background: #fafafa; }
+        .virtual-scroll-viewport::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 4px; }
+        .virtual-scroll-viewport::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
 
-        #pumsumMainTable th,
-        #pumsumMainTable td {
-            font-size: 9px !important;
+        /* 데이터 행 스타일 */
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 3fr 1fr 1.5fr;
+            border-bottom: 1px solid #f1f3f5;
+            align-items: center;
+            position: absolute;
+            width: 100%;
+            left: 0;
+            transition: background-color 0.1s;
+        }
+        .table-row:hover { background-color: #f8f9fa; }
+
+        .td-cell {
+            padding: 0 20px; /* 헤더와 동일한 패딩 적용 */
+            font-size: 14px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: default;
+            color: #495057;
         }
 
-        #pumsumMainTable {
-            min-width: 100%;
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+        .price-up { color: #e11d48; font-weight: 600; }
+        .price-down { color: #2563eb; font-weight: 600; }
+        .price-flat { color: #adb5bd; }
+
+        .status-message {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            color: #868e96;
+            text-align: center;
+        }
+
+        /* 툴팁 */
+        .td-cell:hover::after {
+            content: attr(title);
+            position: fixed;
+            background: rgba(33, 37, 41, 0.95);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 1000;
+            white-space: normal;
+            max-width: 350px;
+            pointer-events: none;
+            display: none; 
+            line-height: 1.4;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body>
 
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <header class="mb-10 text-center relative">
-            <div class="inline-block px-4 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold mb-3 tracking-widest uppercase">Intelligent Matching Engine + DB Manager</div>
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
-                SAMJIN <span class="text-indigo-600">견적시스템</span> <span class="text-slate-400 font-light">v6.0</span>
-            </h1>
-            <p class="text-slate-500 font-medium">지능형 매칭 알고리즘 + 실시간 DB 관리 + n8n 자동화</p>
-        </header>
-
-        <!-- Tab Navigation -->
-        <div class="mb-8 border-b border-slate-200">
-            <div class="flex gap-2 overflow-x-auto">
-                <button class="tab-button active whitespace-nowrap" onclick="switchTab('matching')">🎯 매칭 시스템</button>
-                <button class="tab-button whitespace-nowrap" onclick="switchTab('db-manager')">📊 DB 업데이트</button>
-                <button class="tab-button whitespace-nowrap" onclick="switchTab('db-search')">🔍 DB 검색</button>
-                <button class="tab-button whitespace-nowrap" onclick="switchTab('pumsum-calculator')">🏗️ 품셈 계산기</button>
-                <button class="tab-button whitespace-nowrap" onclick="switchTab('n8n-config')">⚙️ 관리자 설정</button>
+<div class="dashboard-container">
+    
+    <!-- 상단 고정 영역 -->
+    <div class="top-section">
+        <div class="header-area">
+            <div class="header-left">
+                <div class="header-title">
+                    <span>📈 자재/노임 단가 현황</span>
+                </div>
+                <span class="update-badge" id="dataCountBadge">데이터 로딩 중...</span>
+            </div>
+            
+            <div class="header-controls">
+                <select id="sheetSelect" class="sheet-select" onchange="fetchGoogleSheetData()">
+                    <option value="파이프">파이프류</option>
+                    <option value="전선관">전선관류 (기본)</option>
+                    <option value="정부노임">정부노임</option>
+                </select>
+                <button onclick="fetchGoogleSheetData()" class="sync-btn">🔄 동기화</button>
             </div>
         </div>
 
-        <!-- Tab Content: Matching System -->
-        <div id="tab-matching" class="tab-content">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <!-- Left Controls -->
-                <div class="lg:col-span-4 space-y-6">
-                    
-                    <!-- DB Sync Section -->
-                    <div class="glass-card p-6 rounded-3xl shadow-xl transition-all hover:shadow-2xl border-t-4 border-t-indigo-500">
-                        <div class="flex items-center justify-between mb-5">
-                            <h2 class="text-lg font-bold text-slate-800 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                                데이터베이스 설정
-                            </h2>
-                            <span id="dbStatusBadge" class="px-2 py-1 rounded text-[10px] font-bold bg-slate-200 text-slate-600">IDLE</span>
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">DB Selection</label>
-                                <select id="sheetSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
-                                    <option value="세한,신한메탈,신일,화성,동진,영진,인성,프럼파스트">협력사 통합단가 (공통)</option>
-                                    <option value="2025년">2025년 신규 단가표</option>
-                                    <option value="ckw단가(업뎃예정)">CKW 전용 (업데이트 예정)</option>
-                                    <option value="정부노임">정부 공표 노임단가</option>
-                                    <option value="한국물가자료kprc">KPRC 물가자료 (Beta)</option>
-                                </select>
-                            </div>
-                            <div id="dbStatusText" class="text-xs text-amber-600 font-semibold flex items-center">
-                                <span class="w-2 h-2 bg-amber-500 rounded-full mr-2 animate-pulse"></span>
-                                데이터 동기화 대기 중
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- File Upload Section -->
-                    <div class="glass-card p-6 rounded-3xl shadow-xl transition-all hover:shadow-2xl border-t-4 border-t-blue-500">
-                        <h2 class="text-lg font-bold mb-5 text-slate-800 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            내역서 업로드
-                        </h2>
-                        <div class="relative group">
-                            <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                            <div class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center group-hover:border-blue-400 group-hover:bg-blue-50 transition-all">
-                                <svg class="w-10 h-10 mx-auto text-slate-300 group-hover:text-blue-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                <p id="fileNameDisplay" class="text-sm font-medium text-slate-500 group-hover:text-blue-600">엑셀 파일을 드래그하거나 클릭</p>
-                                <p class="text-[10px] text-slate-400 mt-2">XLSX, XLS, CSV 지원</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="space-y-3">
-                        <button onclick="startWorkerMatch()" id="matchBtn" disabled 
-                            class="w-full bg-slate-800 text-white font-bold py-4 px-6 rounded-2xl shadow-xl hover:bg-slate-900 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none transition-all flex items-center justify-center gap-2 transform active:scale-95">
-                            <span id="matchBtnText">⚡ 고속 매칭 실행</span>
-                        </button>
-                        <button onclick="downloadExcel()" id="downloadBtn" disabled 
-                            class="w-full bg-emerald-500 text-white font-bold py-4 px-6 rounded-2xl shadow-xl hover:bg-emerald-600 disabled:opacity-30 disabled:shadow-none transition-all flex items-center justify-center gap-2 transform active:scale-95">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            결과 엑셀 저장
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Right Monitor -->
-                <div class="lg:col-span-8">
-                    <div class="bg-slate-900 rounded-[2rem] p-6 shadow-2xl flex flex-col h-[700px] border border-slate-800 relative overflow-hidden">
-                        <!-- Monitor Header -->
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-4 z-10">
-                            <div class="flex items-center gap-2">
-                                <div class="flex gap-1.5 mr-3">
-                                    <div class="w-3 h-3 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
-                                    <div class="w-3 h-3 bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.6)]"></div>
-                                    <div class="w-3 h-3 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
-                                </div>
-                                <h2 class="text-slate-400 mono text-xs tracking-tighter uppercase opacity-70">Matching Monitor Terminal v6.0</h2>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div id="progressContainer" class="hidden w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                    <div id="progressBar" class="h-full bg-indigo-500 transition-all duration-300" style="width: 0%"></div>
-                                </div>
-                                <button onclick="clearLog()" class="text-[10px] mono text-slate-500 hover:text-white border border-slate-700 hover:border-slate-500 px-3 py-1 rounded-full transition-all">CLEAR_LOG</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Log Area -->
-                        <div id="log" class="log-container flex-1 mono text-[12px] text-indigo-300 overflow-y-auto whitespace-pre-wrap leading-relaxed px-2 py-2"></div>
-                        
-                        <!-- Console Decoration -->
-                        <div class="absolute bottom-4 right-6 opacity-10 pointer-events-none">
-                            <svg class="w-24 h-24 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14H11V21L20 10H13Z"></path></svg>
-                        </div>
-                    </div>
-                </div>
+        <!-- Top 3 랭킹 섹션 -->
+        <div class="ranking-section">
+            <div class="rank-card">
+                <div class="rank-title up">🔥 가격 급등 Top 3</div>
+                <ul class="rank-list" id="rankListUp">
+                    <li class="rank-empty">데이터 분석 중...</li>
+                </ul>
             </div>
-        </div>
-
-        <!-- Tab Content: DB Manager -->
-        <div id="tab-db-manager" class="tab-content hidden">
-            <div class="glass-card p-8 rounded-3xl shadow-xl">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-slate-800">📊 데이터베이스 관리</h2>
-                    <div class="flex gap-3">
-                        <button onclick="openAddItemModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-all flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            품목 추가
-                        </button>
-                        <!-- Added Apply All Button -->
-                        <button onclick="applyAllDBItems()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-700 transition-all flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            모두 적용
-                        </button>
-                        <!-- Added Delete All Button -->
-                        <button onclick="openDeleteAllModal()" class="bg-rose-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-rose-700 transition-all flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            모두 삭제
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mb-4 flex flex-col md:flex-row gap-3">
-                    <input type="text" id="searchDB" placeholder="품명, 규격으로 검색..." class="flex-1 px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <select id="filterCategory" class="px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" onchange="renderDBTable()">
-                        <option value="">전체 카테고리</option>
-                        <!-- Options will be populated dynamically -->
-                    </select>
-                </div>
-
-                <div class="overflow-auto max-h-[600px] border border-slate-200 rounded-xl">
-                    <table class="db-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 5%">#</th>
-                                <th style="width: 18%">품명</th>
-                                <th style="width: 18%">규격</th>
-                                <th style="width: 8%">단위</th>
-                                <th style="width: 10%">재료비</th>
-                                <th style="width: 10%">노무비</th>
-                                <th style="width: 13%">비고</th>
-                                <th style="width: 10%">작업</th>
-                                <th style="width: 8%">적용</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dbTableBody">
-                            <!-- Dynamic content -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p class="text-sm text-slate-600">총 <span id="dbCount" class="font-bold text-indigo-600">0</span>개 품목</p>
-                    <div class="flex gap-3">
-                        <div class="relative">
-                            <input type="file" id="dbExcelUpload" accept=".xlsx, .xls" class="hidden" onchange="importDBFromExcel(event)">
-                            <button onclick="document.getElementById('dbExcelUpload').click()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-blue-700 transition-all flex items-center gap-2">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4-4m4 4V4"></path></svg>
-                                DB 엑셀 업로드
-                            </button>
-                        </div>
-                        <button onclick="exportDBToExcel()" class="bg-slate-700 text-white px-4 py-2 rounded-xl font-semibold hover:bg-slate-800 transition-all flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            DB 엑셀 다운로드
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab Content: DB Search (Redesigned with Split Layout) -->
-        <div id="tab-db-search" class="tab-content hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <!-- Left Panel: Search & Guideline -->
-                <div class="lg:col-span-4 flex flex-col gap-6 sticky top-6">
-                    <!-- Search Card -->
-                    <div class="glass-card p-6 rounded-3xl shadow-xl">
-                        <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            DB 검색 설정
-                        </h2>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">검색어 (품명/규격)</label>
-                                <input type="text" id="externalSearchInput" placeholder="검색어 입력 (엔터)..." class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all" onkeypress="if(event.key === 'Enter') searchExternalDB()">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">코드 검색</label>
-                                <select id="externalCodeFilter" class="w-full bg-white border border-slate-300 rounded-xl p-3 text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all cursor-pointer" onchange="searchExternalDB()">
-                                    <option value="">코드 선택</option>
-                                    <!-- Options will be loaded automatically -->
-                                </select>
-                            </div>
-
-                            <button onclick="searchExternalDB()" id="externalSearchBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg">
-                                검색 실행
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Guideline Card (Replacing Notepad) -->
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
-                        <h3 class="font-bold text-blue-900 mb-2 flex items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            코드 가이드
-                        </h3>
-                        <p class="text-sm text-blue-800 mb-2">아래 코드를 확인 및 참조하세요.</p>
-                        <div class="space-y-1 text-sm text-blue-700 font-mono bg-blue-100/50 p-3 rounded">
-                            <div class="flex justify-between"><span>등록된 코드: ckw, 세한</span> <span class="font-bold">(공통)</span></div>
-                            <div class="flex justify-between"><span>신규 코드 생성 -> DB업데이트 Tab</span> <span class="font-bold"></span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel: Results -->
-                <div class="lg:col-span-8">
-                    <div class="glass-card p-6 rounded-3xl shadow-xl flex flex-col">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xl font-bold text-slate-800">검색 결과</h2>
-                            <span id="extDbStatus" class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">데이터 대기중</span>
-                        </div>
-                        
-                        <div class="overflow-x-auto border border-slate-200 rounded-xl relative bg-white">
-                            <table class="w-full text-sm text-left border-collapse" id="externalResultTable">
-                                <thead class="bg-slate-100 text-slate-700 font-bold uppercase sticky top-0 z-10 shadow-sm">
-                                    <tr>
-                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">품명</th>
-                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">규격</th>
-                                        <th class="px-4 py-3 border-b border-slate-200 text-center whitespace-nowrap">단위</th>
-                                        <th class="px-4 py-3 border-b border-slate-200 text-right whitespace-nowrap">재료비</th>
-                                        <th class="px-4 py-3 border-b border-slate-200 text-right whitespace-nowrap">노무비</th>
-                                        <th class="px-4 py-3 border-b border-slate-200 whitespace-nowrap">비고</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="externalResultBody" class="bg-white divide-y divide-slate-100">
-                                   <!-- Dynamic Rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <p class="text-xs text-slate-500 mt-3 flex items-center gap-1 font-medium bg-indigo-50 p-3 rounded-xl text-indigo-600 border border-indigo-100">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Tip: 검색 결과를 마우스로 드래그 선택 후 복사(Ctrl+C)하여 엑셀에 바로 붙여넣기(Ctrl+V) 하세요.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab Content: Pumsum Calculator -->
-        <div id="tab-pumsum-calculator" class="tab-content hidden">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="glass-card p-6 rounded-3xl shadow-xl border-t-4 border-t-blue-500">
-                    <h3 class="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>
-                        품셈 데이터베이스 (v3.5 Engine)
-                    </h3>
-                    <button id="pumsumSyncBtn" onclick="syncPumsumData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-base font-bold shadow-md transition-all active:scale-[0.98]">
-                        🔄 품셈 DB 동기화
-                    </button>
-                    <p id="pumsumSyncStatus" class="mt-3 text-xs text-slate-600 text-center font-medium">데이터 로드 전입니다.</p>
-                </div>
-
-                <div class="glass-card p-6 rounded-3xl shadow-xl border-t-4 border-t-emerald-500">
-                    <h3 class="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                        공내역 파일 업로드
-                    </h3>
-                    <input type="file" id="pumsumFileInput" accept=".xlsx, .xls" 
-                        class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
-                    />
-                </div>
-
-                <div class="glass-card p-6 rounded-3xl shadow-xl border-t-4 border-t-purple-500">
-                    <h3 class="text-sm font-bold text-purple-900 mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        처리 통계
-                    </h3>
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-slate-600">총 항목:</span>
-                            <span id="pumsumStatTotal" class="font-bold text-purple-700">0</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-slate-600">매칭 점수:</span>
-                            <span id="pumsumStatScore" class="font-bold text-emerald-600">0 Hits</span>
-                        </div>
-                        <div class="flex justify-between text-sm">
-                            <span class="text-slate-600">상태:</span>
-                            <span id="pumsumStatStatus" class="font-bold text-slate-400">대기중</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Loading -->
-            <div id="pumsumLoading" class="hidden flex-col items-center justify-center py-16 bg-slate-50 rounded-xl">
-                <div class="w-12 h-12 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                <p class="text-slate-500 text-lg font-bold">Pro v3.5 정밀 분석 엔진 가동 중...</p>
-                <p class="text-slate-400 text-sm mt-2">쉼표 수치 교정 및 범위 규격 매칭 중</p>
-            </div>
-
-            <!-- Result Table Area -->
-            <div id="pumsumResultArea" class="hidden">
-                <div class="flex items-center justify-between mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        산출 내역 결과 (Pro v3.5)
-                    </h2>
-                    <button onclick="exportPumsumToExcel()" class="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:from-emerald-700 hover:to-emerald-800 shadow-lg transition-all active:scale-[0.98] flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        결과 엑셀 다운로드
-                    </button>
-                </div>
-                
-                <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-inner max-h-[600px] bg-slate-50">
-                    <table class="w-full border-collapse table-fixed bg-white" id="pumsumMainTable" style="font-size: 11px;">
-                        <thead id="pumsumTableHeader"></thead>
-                        <tbody id="pumsumResultBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="pumsumEmptyState" class="py-24 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
-                <div class="text-6xl mb-4 opacity-20">📋</div>
-                <p class="text-slate-500 text-lg font-semibold mb-2">품셈 데이터를 먼저 불러와주세요</p>
-                <p class="text-slate-400 text-sm">DB 동기화 후 공내역 엑셀 파일을 업로드하세요</p>
-            </div>
-        </div>
-
-        <!-- Tab Content: n8n Config -->
-        <div id="tab-n8n-config" class="tab-content hidden">
-             <div class="glass-card p-8 rounded-3xl shadow-xl max-w-4xl mx-auto">
-                <h2 class="text-2xl font-bold text-slate-800 mb-6">⚙️ n8n 자동화 설정</h2>
-                
-                <div class="space-y-6">
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
-                        <h3 class="font-bold text-blue-900 mb-2">🔗 n8n Webhook 연동 가이드</h3>
-                        <p class="text-sm text-blue-800 mb-3">아래 Webhook URL을 n8n에 설정하여 자동화 워크플로우를 구축하세요.</p>
-                        <ol class="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                            <li>n8n에서 Webhook 노드 생성</li>
-                            <li>POST 메소드로 설정</li>
-                            <li>생성된 Webhook URL을 아래에 입력</li>
-                            <li>Google Sheets 노드로 DB 업데이트 자동화</li>
-                        </ol>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">n8n Webhook URL (품목 추가용)</label>
-                        <input type="text" id="n8nWebhookAdd" placeholder="https://your-n8n-instance.com/webhook/add-item" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm">
-                        <p class="text-xs text-slate-500 mt-1">품목 추가 시 자동으로 이 URL로 데이터 전송</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">n8n Webhook URL (품목 수정용)</label>
-                        <input type="text" id="n8nWebhookUpdate" placeholder="https://your-n8n-instance.com/webhook/update-item" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm">
-                        <p class="text-xs text-slate-500 mt-1">품목 수정 시 자동으로 이 URL로 데이터 전송</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">n8n Webhook URL (품목 삭제용)</label>
-                        <input type="text" id="n8nWebhookDelete" placeholder="https://your-n8n-instance.com/webhook/delete-item" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm">
-                        <p class="text-xs text-slate-500 mt-1">품목 삭제 시 자동으로 이 URL로 데이터 전송</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Google Sheets ID</label>
-                        <input type="text" id="googleSheetsId" value="1GaUzextj8jdry2iegBK7EiWDm1VASX8od3o9tP7DoZU" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm">
-                        <p class="text-xs text-slate-500 mt-1">현재 연동된 Google Sheets 문서 ID</p>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="enableAutoSync" class="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500">
-                        <label for="enableAutoSync" class="text-sm font-semibold text-slate-700">자동 동기화 활성화 (n8n 필수)</label>
-                    </div>
-
-                    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
-                        <h3 class="font-bold text-amber-900 mb-2">🔐 관리자 비밀번호 변경</h3>
-                        <div class="flex gap-3">
-                            <input type="password" id="newAdminPassword" placeholder="새 비밀번호 (4자리)" maxlength="4" class="flex-1 px-4 py-2 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono text-center tracking-widest">
-                            <button onclick="changePasswordClick()" class="bg-amber-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-amber-700 transition-all">
-                                비밀번호 변경
-                            </button>
-                        </div>
-                        <p class="text-xs text-amber-700 mt-2">⚠️ 비밀번호는 4자리 숫자 또는 문자로 설정하세요</p>
-                    </div>
-
-                    <button onclick="saveN8nConfig()" class="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-indigo-700 transition-all">
-                        💾 설정 저장
-                    </button>
-                </div>
+            <div class="rank-card">
+                <div class="rank-title down">💧 가격 급락 Top 3</div>
+                <ul class="rank-list" id="rankListDown">
+                    <li class="rank-empty">데이터 분석 중...</li>
+                </ul>
             </div>
         </div>
     </div>
 
-    <!-- Modals (Add Item, Password, Alert) -->
-    <!-- Add Item Modal -->
-    <div id="addItemModal" class="modal">
-        <div class="modal-content p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-slate-800">➕ 새 품목 추가</h3>
-                <button onclick="closeAddItemModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
-            </div>
+    <!-- 테이블 영역 (헤더 + 리스트) -->
+    <div class="table-area-wrapper">
+        <!-- 테이블 헤더 -->
+        <div class="table-header">
+            <div class="th-cell text-left" id="th-col1">품명</div>
+            <div class="th-cell text-left" id="th-col2">규격</div>
+            <div class="th-cell text-center" id="th-col3">단위</div>
+            <div class="th-cell text-right" id="th-col4">등락</div>
+        </div>
 
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">품명 *</label>
-                    <input type="text" id="newItemName" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 배관용탄소강관">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">규격 *</label>
-                    <input type="text" id="newItemSpec" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="예: 80Ax3000L">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">단위 *</label>
-                        <input type="text" id="newItemUnit" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="EA">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">비고</label>
-                        <input type="text" id="newItemNote" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="카테고리/메모">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">재료비</label>
-                        <input type="number" id="newItemMat" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">노무비</label>
-                        <input type="number" id="newItemLab" class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0">
-                    </div>
-                </div>
-
-                <div class="flex gap-3 pt-4">
-                    <button onclick="addNewItem()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all">
-                        추가하기
-                    </button>
-                    <button onclick="closeAddItemModal()" class="px-6 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-300 transition-all">
-                        취소
-                    </button>
-                </div>
-            </div>
+        <!-- 가상 스크롤 뷰포트 -->
+        <div class="virtual-scroll-viewport" id="viewport">
+            <div id="contentContainer" style="position: relative; height: 0;"></div>
+            <div id="statusMsg" class="status-message">데이터를 불러오는 중입니다...</div>
         </div>
     </div>
 
-    <!-- Password Modal -->
-    <div id="passwordModal" class="modal">
-        <div class="modal-content p-8" style="max-width: 400px;">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-2xl font-bold text-slate-800">🔐 관리자 인증</h3>
-                <p class="text-sm text-slate-500 mt-2">비밀번호를 입력해주세요</p>
-            </div>
+</div>
 
-            <div class="space-y-4">
-                <div>
-                    <input type="password" id="adminPassword" 
-                           class="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-center text-lg tracking-widest font-mono" 
-                           placeholder="••••" 
-                           maxlength="4"
-                           onkeypress="if(event.key === 'Enter') checkAdminPassword()">
-                </div>
-                <div id="passwordError" class="text-rose-600 text-sm text-center hidden">
-                    ❌ 비밀번호가 올바르지 않습니다
-                </div>
-                <div class="flex gap-3">
-                    <button onclick="checkAdminPassword()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all">
-                        확인
-                    </button>
-                    <button onclick="closePasswordModal()" class="px-6 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-300 transition-all">
-                        취소
-                    </button>
-                </div>
-                <div class="text-xs text-slate-400 text-center pt-2">
-                    초기 비밀번호: 0000
-                </div>
-            </div>
-        </div>
-    </div>
+<script>
+    // --- 설정값 ---
+    const SHEET_ID = '1D7hfHKGWzrN3MNItBKkWlKJxFw64gD5mXK3URmfckbI';
+    const ROW_HEIGHT = 50; // 행 높이 살짝 증가 (45 -> 50) 가독성 향상
 
-    <!-- Confirm Modal -->
-    <div id="confirmModal" class="modal">
-        <div class="modal-content p-8 max-w-sm text-center">
-            <div class="mb-4 text-amber-500">
-                <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            </div>
-            <h3 class="text-xl font-bold text-slate-800 mb-2">삭제 확인</h3>
-            <p id="confirmMessage" class="text-slate-600 mb-6 font-medium">정말 삭제하시겠습니까?</p>
-            <div class="flex gap-3">
-                <button onclick="executePendingDelete()" class="flex-1 bg-rose-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-rose-700 transition-all shadow-lg active:scale-95">삭제</button>
-                <button onclick="closeConfirmModal()" class="flex-1 bg-slate-200 text-slate-700 px-4 py-3 rounded-xl font-bold hover:bg-slate-300 transition-all">취소</button>
-            </div>
-        </div>
-    </div>
+    // 상태 변수
+    let allData = [];
+    const viewport = document.getElementById('viewport');
+    const contentContainer = document.getElementById('contentContainer');
+    const statusMsg = document.getElementById('statusMsg');
+    const sheetSelect = document.getElementById('sheetSelect');
+    
+    // Top 3 엘리먼트
+    const rankListUp = document.getElementById('rankListUp');
+    const rankListDown = document.getElementById('rankListDown');
 
-    <!-- Delete All Auth Modal -->
-    <div id="deleteAllModal" class="modal">
-        <div class="modal-content p-8" style="max-width: 400px;">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </div>
-                <h3 class="text-2xl font-bold text-slate-800">🗑️ 전체 삭제</h3>
-                <p class="text-sm text-slate-500 mt-2">비밀번호를 입력하세요</p>
-            </div>
-            <div class="space-y-4">
-                <input type="password" id="deleteAllPassword" class="w-full px-4 py-3 border-2 border-rose-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none text-center text-lg tracking-widest font-mono" placeholder="••••" maxlength="4">
-                <button onclick="checkDeleteAll()" class="w-full bg-rose-600 text-white font-bold py-3 rounded-xl hover:bg-rose-700 transition-all shadow-lg">확인 및 삭제</button>
-                <button onclick="closeDeleteAllModal()" class="w-full bg-slate-100 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-200 transition-all">취소</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Alert Modal -->
-    <div id="alertModal" class="modal">
-        <div class="modal-content p-8 max-w-sm text-center">
-            <div class="mb-4 text-indigo-600">
-                <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </div>
-            <h3 class="text-xl font-bold text-slate-800 mb-2">알림</h3>
-            <p id="alertMessage" class="text-slate-600 mb-6 font-medium whitespace-pre-wrap"></p>
-            <button onclick="closeAlertModal()" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg active:scale-95">확인</button>
-        </div>
-    </div>
-
-    <!-- Web Worker Script -->
-    <script id="worker-script" type="javascript/worker">
-        const ALIAS_MAP = {
-            "스테인리스": "STS", "스텐": "STS", "SUS": "STS", "SU": "STS",
-            "배관용탄소강관(무용접)": "배관용탄소강관",
-            "배관용탄소강관(SPP)용접식": "배관용탄소강관",
-            "배관용탄소강관(SPP)나사식": "배관용탄소강관",
-            "PIPE": "파이프", "슬리브": "스리브", "후렌지": "플랜지", "후랜지": "플랜지",
-            "엘보": "ELBOW", "엘보우": "ELBOW", "카플링": "커플링", "커풀링": "커플링",
-            "덕트": "DUCT", "닥트": "덕트", "펌프": "PUMP",
-            "레듀샤": "리듀서", "레듀서": "리듀서", "티": "TEE", "티이": "TEE",
-            "스트레이나": "스트레나", "스트레이너": "스트레나",
-            "칼라함석": "칼라함석마감", "함석마감": "칼라함석마감",
-            "고무발포+매직": "고무발포", "고무발포보온재": "고무발포", "매직테이프": "매직",
-            "Y-T": "YT", "BRANCH": "브랜치", "경질염화비닐": "PVC",
-            "P.V.C": "PVC", "경질염화비닐관": "PVC관", "내열성폴리염화비닐": "CPVC",
-            "C-PVC": "CPVC", "난연": "아티론", "관보온": "아티론", "발포폴리에틸렌": "발포",
-            "고무발포": "발포", "가교발포": "발포", "은박": "매직", "테프": "테이프",
-            "행거": "행가", "달대": "전산", "S#": "SCH", "GATE": "게이트", 
-            "보온재": "보온", "붓싱": "부싱", "닛뿔": "니플", "니뿔": "니플", 
-            "닛쁠": "니플", "니쁠": "니플", "닛플": "니플", "U": "유",
-            "BLACK": "블랙", "어댑타": "어댑터", "SENSOR": "센서", "메꾸라": "캡", "BAND": "밴드",
-            "드레인": "배수", "WHC": "수격방지기", "W.H.C": "수격방지기"
-        };
-
-        const REMOVE_KEYWORDS = ["포함", "에서", "(", ")", "+", "=", "-", ",", " "];
-
-        function normalize(str) {
-            if (!str) return "";
-            let n = str.toString().toUpperCase().replace(/\s+/g, "");
-            n = n.replace(/\*|X/g, "x");
-            const sortedKeys = Object.keys(ALIAS_MAP).sort((a, b) => b.length - a.length);
-            for (const key of sortedKeys) {
-                if (n.includes(key)) n = n.split(key).join(ALIAS_MAP[key]);
-            }
-            REMOVE_KEYWORDS.forEach(kw => { n = n.split(kw).join(""); });
-            n = n.replace(/EA|EACH|개|SET|세트|BOX|박스|M|MTR/g, "");
-            return n.replace(/[^A-Z0-9가-힣]/g, "");
-        }
-
-        function getSimilarity(s1, s2) {
-            if (!s1 || !s2) return 0;
-            if (s1 === s2) return 100;
-            const getPairs = (str) => {
-                const pairs = new Set();
-                for (let i = 0; i < str.length - 1; i++) pairs.add(str.substring(i, i + 2));
-                return pairs;
-            };
-            const pairs1 = getPairs(s1);
-            const pairs2 = getPairs(s2);
-            if (pairs1.size === 0 || pairs2.size === 0) return 0;
-            let intersection = 0;
-            pairs1.forEach(p => { if (pairs2.has(p)) intersection++; });
-            return (2.0 * intersection) / (pairs1.size + pairs2.size) * 100;
-        }
-
-        self.onmessage = function(e) {
-            const { csvRows, dbRows, config } = e.data;
-            const results = [];
-            const THRESHOLD = 45;
-
-            const processedDB = dbRows.map(row => ({
-                original: row,
-                combined: normalize(row.A + row.B),
-                normName: normalize(row.A),
-                normSpec: normalize(row.B),
-                normUnit: normalize(row.C),
-                totalCost: (parseFloat(row.D) || 0) + (parseFloat(row.E) || 0)
-            }));
-
-            for (let i = 0; i < csvRows.length; i++) {
-                const row = csvRows[i];
-                const srcName = row[config.nameIdx] || "";
-                const srcSpec = row[config.specIdx] || "";
-                const srcUnit = row[config.unitIdx] || "";
-                
-                const rawMat = row[config.matIdx];
-                const rawLab = row[config.labIdx];
-                const numMat = parseFloat(String(rawMat || "0").replace(/[^0-9.]/g, ""));
-                const numLab = parseFloat(String(rawLab || "0").replace(/[^0-9.]/g, ""));
-                
-                if (numMat > 0 || numLab > 0) {
-                    results.push([srcName, srcSpec, srcUnit, rawMat, rawLab, "-", "-", "-", "-", "-", "-", "-", "-", "-", "-"]);
-                    continue;
-                }
-
-                const nCombined = normalize(srcName + srcSpec);
-                const nUnit = normalize(srcUnit);
-                const nName = normalize(srcName);
-                const nSpec = normalize(srcSpec);
-
-                if (!nCombined) {
-                    results.push([srcName, srcSpec, srcUnit, 0, 0, "", "", "", "", "", "", "", "", "", ""]);
-                    continue;
-                }
-
-                const identicalMatches = processedDB.filter(db => db.combined === nCombined && (db.normUnit === nUnit || !nUnit));
-
-                if (identicalMatches.length > 0) {
-                    const uniquePrices = new Set(identicalMatches.map(m => m.original.D + "|" + m.original.E));
-                    
-                    if (uniquePrices.size > 1) {
-                        identicalMatches.sort((a, b) => b.totalCost - a.totalCost);
-                        const maxItem = identicalMatches[0].original;
-                        const minItem = identicalMatches[identicalMatches.length - 1].original;
-                        results.push([
-                            srcName, srcSpec, srcUnit, "충돌!", "코드를확인하세요.",
-                            maxItem.A, maxItem.B, maxItem.C, maxItem.D, maxItem.E,
-                            minItem.A, minItem.B, minItem.C, minItem.D, minItem.E 
-                        ]);
-                    } else {
-                        const best = identicalMatches[0].original;
-                        results.push([
-                            srcName, srcSpec, srcUnit, best.D, best.E,
-                            "", "", "", "자동매칭", "",
-                            "", "", "", "", ""
-                        ]);
-                    }
-                } else {
-                    let candidates = [];
-                    for (let j = 0; j < processedDB.length; j++) {
-                        const db = processedDB[j];
-                        const nameSim = getSimilarity(nName, db.normName);
-                        const specSim = getSimilarity(nSpec, db.normSpec);
-                        const unitSim = (nUnit === db.normUnit && nUnit !== "") ? 100 : 0;
-                        const totalScore = (nameSim * 0.5) + (specSim * 0.4) + (unitSim * 0.1);
-                        
-                        if (totalScore >= THRESHOLD) {
-                            candidates.push({ score: totalScore, item: db.original });
-                        }
-                    }
-
-                    candidates.sort((a, b) => b.score - a.score);
-                    const c1 = candidates[0] ? candidates[0].item : {};
-                    const c2 = candidates[1] ? candidates[1].item : {};
-
-                    results.push([
-                        srcName, srcSpec, srcUnit, 0, 0,
-                        c1.A || "", c1.B || "", c1.C || "", c1.D || "", c1.E || "",
-                        c2.A || "", c2.B || "", c2.C || "", c2.D || "", c2.E || ""
-                    ]);
-                }
-
-                if (i % 50 === 0 || i === csvRows.length - 1) {
-                    self.postMessage({ type: 'PROGRESS', percent: Math.floor(((i + 1) / csvRows.length) * 100) });
-                }
-            }
-            self.postMessage({ type: 'COMPLETE', results });
-        };
-    </script>
-
-    <script>
-        // Custom Alert Logic
-        function customAlert(msg) {
-            const message = typeof msg === 'string' ? msg : JSON.stringify(msg);
-            document.getElementById('alertMessage').textContent = message.replace(/\\n/g, '\n');
-            document.getElementById('alertModal').classList.add('active');
-        }
-
-        function closeAlertModal() {
-            document.getElementById('alertModal').classList.remove('active');
-        }
+    // 1. 구글 시트 데이터 가져오기
+    async function fetchGoogleSheetData() {
+        const selectedSheet = sheetSelect.value;
+        statusMsg.innerText = `"${selectedSheet}" 데이터를 가져오는 중...`;
+        statusMsg.style.display = 'block';
+        contentContainer.innerHTML = '';
         
-        window.alert = customAlert;
-
-        // Global Variables
-        let dbRows = [];
-        let csvRows = [];
-        let resultRows = [];
-        let colConfig = { nameIdx: 0, specIdx: 1, unitIdx: 2, matIdx: 3, labIdx: 4 };
-        let localDB = JSON.parse(localStorage.getItem('samjin_local_db')) || [];
-        let n8nConfig = JSON.parse(localStorage.getItem('samjin_n8n_config')) || {
-            webhookAdd: '',
-            webhookUpdate: '',
-            webhookDelete: '',
-            sheetsId: '1GaUzextj8jdry2iegBK7EiWDm1VASX8od3o9tP7DoZU',
-            autoSync: false
-        };
+        rankListUp.innerHTML = '<li class="rank-empty">로딩 중...</li>';
+        rankListDown.innerHTML = '<li class="rank-empty">로딩 중...</li>';
         
-        // Admin password
-        let adminPassword = localStorage.getItem('samjin_admin_password') || '0000';
-        let isAdminAuthenticated = false;
-        let pendingTab = null;
-        let pendingDeleteIdx = null;
+        document.getElementById('dataCountBadge').innerText = '로딩 중...';
 
-        // DOM Elements
-        const logEl = document.getElementById("log");
-        const matchBtn = document.getElementById("matchBtn");
-        const downloadBtn = document.getElementById("downloadBtn");
-        const dbStatusText = document.getElementById("dbStatusText");
-        const dbStatusBadge = document.getElementById("dbStatusBadge");
-        const progressBar = document.getElementById("progressBar");
-        const progressContainer = document.getElementById("progressContainer");
-        const fileNameDisplay = document.getElementById("fileNameDisplay");
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(selectedSheet)}`;
 
-        // Tab Switching
-        function switchTab(tabName) {
-            if (tabName === 'n8n-config' && !isAdminAuthenticated) {
-                pendingTab = tabName;
-                openPasswordModal();
-                return;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("네트워크 응답 실패");
+            
+            const text = await response.text();
+            parseCSV(text);
+        } catch (error) {
+            console.error(error);
+            statusMsg.innerHTML = `<span style="color:red">데이터 로드 실패.<br>시트명 확인 필요</span>`;
+            document.getElementById('dataCountBadge').innerText = '오류 발생';
+        }
+    }
+
+    // 2. CSV 파싱
+    function parseCSV(csvText) {
+        const rows = csvText.split('\n');
+        const parsedRows = rows.map(row => {
+            const regex = /(?:^|,)("(?:[^"]|"")*"|[^,]*)/g;
+            let columns = [];
+            let match;
+            while (match = regex.exec(row)) {
+                let val = match[1];
+                if (val.length > 0 && val[0] === '"') val = val.slice(1, -1).replace(/""/g, '"');
+                columns.push(val.trim());
             }
-            
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            const buttons = document.querySelectorAll('.tab-button');
-            buttons.forEach(btn => {
-                if(btn.getAttribute('onclick').includes(tabName)) btn.classList.add('active');
-            });
-
-            if (tabName === 'db-manager') {
-                renderDBTable();
-            } else if (tabName === 'n8n-config') {
-                loadN8nConfig();
-            } else if (tabName === 'db-search') {
-                initExternalDB();
-            }
-        }
-
-        // ... existing modal functions ...
-        function openPasswordModal() {
-            document.getElementById('passwordModal').classList.add('active');
-            document.getElementById('adminPassword').value = '';
-            document.getElementById('passwordError').classList.add('hidden');
-            setTimeout(() => { document.getElementById('adminPassword').focus(); }, 100);
-        }
-
-        function closePasswordModal() {
-            document.getElementById('passwordModal').classList.remove('active');
-            document.getElementById('adminPassword').value = '';
-            document.getElementById('passwordError').classList.add('hidden');
-            pendingTab = null;
-        }
-
-        function checkAdminPassword() {
-            const inputPassword = document.getElementById('adminPassword').value;
-            if (inputPassword === adminPassword) {
-                isAdminAuthenticated = true;
-                closePasswordModal();
-                if (pendingTab) {
-                    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-                    document.getElementById(`tab-${pendingTab}`).classList.remove('hidden');
-                    const buttons = document.querySelectorAll('.tab-button');
-                    buttons.forEach(btn => {
-                        if(btn.getAttribute('onclick').includes(pendingTab)) btn.classList.add('active');
-                    });
-                    loadN8nConfig();
-                    addLog('관리자 인증 성공', 'success');
-                }
-            } else {
-                document.getElementById('passwordError').classList.remove('hidden');
-                document.getElementById('adminPassword').value = '';
-                document.getElementById('adminPassword').focus();
-            }
-        }
-
-        function changeAdminPassword(newPassword) {
-            if (newPassword && newPassword.length === 4) {
-                adminPassword = newPassword;
-                localStorage.setItem('samjin_admin_password', newPassword);
-                addLog('관리자 비밀번호가 변경되었습니다', 'success');
-                return true;
-            }
-            return false;
-        }
-
-        // Logging
-        function addLog(msg, type='info') {
-            const time = new Date().toLocaleTimeString('ko-KR', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            let colorClass = "text-indigo-300";
-            let symbol = "»";
-            if (type === 'success') { colorClass = "text-emerald-400"; symbol = "✓"; }
-            if (type === 'error') { colorClass = "text-rose-400"; symbol = "✗"; }
-            if (type === 'warn') { colorClass = "text-amber-400"; symbol = "⚠"; }
-            const div = document.createElement('div');
-            div.className = `mb-1.5 flex items-start gap-3 opacity-0 translate-x-[-10px]`;
-            div.style.animation = "slideIn 0.3s forwards";
-            div.innerHTML = `
-                <span class="text-slate-600 shrink-0 text-[10px] mt-0.5">${time}</span>
-                <span class="${colorClass} shrink-0">${symbol}</span>
-                <span class="${colorClass} break-all">${msg}</span>
-            `;
-            logEl.appendChild(div);
-            logEl.scrollTop = logEl.scrollHeight;
-        }
-        const style = document.createElement('style');
-        style.textContent = `@keyframes slideIn { to { opacity: 1; transform: translateX(0); } }`;
-        document.head.appendChild(style);
-        function clearLog() { logEl.innerHTML = ""; addLog("터미널 로그가 초기화되었습니다."); }
-
-        // Utility
-        function parsePrice(val) {
-            if (val === null || val === undefined || val === "") return "0";
-            const clean = String(val).replace(/[^0-9.]/g, "");
-            return clean === "" ? "0" : clean;
-        }
-        function getValueByKeywords(obj, keywords) {
-            const keys = Object.keys(obj);
-            const foundKey = keys.find(k => {
-                const cleanK = k.toString().replace(/\s+/g, "");
-                return keywords.some(kw => cleanK.includes(kw));
-            });
-            return foundKey ? obj[foundKey] : null;
-        }
-
-        // DB Management
-        async function fetchDB() {
-            const sheetName = document.getElementById("sheetSelect").value;
-            const SPREADSHEET_ID = n8nConfig.sheetsId;
-            const DB_URL = `https://opensheet.elk.sh/${SPREADSHEET_ID}/${encodeURIComponent(sheetName)}`;
-            
-            dbStatusBadge.textContent = "SYNCING";
-            dbStatusBadge.className = "px-2 py-1 rounded text-[10px] font-bold bg-indigo-500 text-white animate-pulse";
-            dbStatusText.innerHTML = `<span class="w-2 h-2 bg-indigo-500 rounded-full mr-2 animate-ping"></span>${sheetName} 데이터 동기화 중...`;
-            dbStatusText.className = "text-xs text-indigo-500 font-bold";
-            
-            try {
-                const res = await fetch(DB_URL);
-                if (!res.ok) throw new Error('Network response was not ok');
-                const data = await res.json();
-                if (!Array.isArray(data) || data.length === 0) throw new Error("데이터 형식이 올바르지 않거나 비어있습니다.");
-
-                dbRows = data.map(r => ({
-                    A: getValueByKeywords(r, ["품명", "품목", "이름"]) || "",
-                    B: getValueByKeywords(r, ["규격", "사이즈", "규 격"]) || "",
-                    C: getValueByKeywords(r, ["단위", "단 위"]) || "",
-                    D: parsePrice(getValueByKeywords(r, ["재료비", "재료", "단가", "자재비"])),
-                    E: parsePrice(getValueByKeywords(r, ["노무비", "노무"])),
-                    F: getValueByKeywords(r, ["비고", "메모", "참고", "Remarks"]) || ""
-                }));
-
-                localDB.forEach(local => {
-                    const exists = dbRows.find(db => db.A === local.A && db.B === local.B);
-                    if (!exists) dbRows.push(local);
-                });
-
-                dbStatusBadge.textContent = "CONNECTED";
-                dbStatusBadge.className = "px-2 py-1 rounded text-[10px] font-bold bg-emerald-500 text-white";
-                dbStatusText.innerHTML = `<span class="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>DB v6.0 연결됨`;
-                dbStatusText.className = "text-xs text-emerald-600 font-bold";
-                addLog(`Master DB 로드 완료: [${sheetName}] + 로컬 DB 병합`, 'success');
-                if(csvRows.length > 0) matchBtn.disabled = false;
-            } catch (err) {
-                dbStatusBadge.textContent = "ERROR";
-                dbStatusBadge.className = "px-2 py-1 rounded text-[10px] font-bold bg-rose-500 text-white";
-                dbStatusText.textContent = "❌ 데이터 동기화 실패 (로컬 DB 사용 중)";
-                dbStatusText.className = "text-xs text-rose-500 font-bold";
-                addLog("DB 로딩 에러: " + err.message + " (로컬 DB 사용)", 'error');
-                dbRows = [...localDB];
-            }
-        }
-
-        // Updated function to populate dynamic category filters based on "Remarks" (F column)
-        function updateCategoryOptions() {
-            const select = document.getElementById('filterCategory');
-            const currentVal = select.value;
-            const uniqueNotes = [...new Set(localDB.map(item => item.F || "").filter(x => x))].sort();
-            
-            // Keep "All" option
-            select.innerHTML = '<option value="">전체 카테고리</option>';
-            
-            uniqueNotes.forEach(note => {
-                const option = document.createElement('option');
-                option.value = note;
-                option.textContent = note;
-                if (note === currentVal) option.selected = true;
-                select.appendChild(option);
-            });
-        }
-
-        // ... existing renderDBTable, updateDBItem, deleteDBItem ...
-        function renderDBTable() {
-            // Update filter options first based on current data
-            updateCategoryOptions();
-
-            const tbody = document.getElementById('dbTableBody');
-            tbody.innerHTML = '';
-            const searchTerm = document.getElementById('searchDB').value.toLowerCase();
-            const filterCategory = document.getElementById('filterCategory').value;
-
-            let filteredDB = localDB;
-            
-            // Filter by search term
-            if (searchTerm) {
-                filteredDB = filteredDB.filter(item => item.A.toLowerCase().includes(searchTerm) || item.B.toLowerCase().includes(searchTerm));
-            }
-            
-            // Filter by Category (Remarks)
-            if (filterCategory) {
-                filteredDB = filteredDB.filter(item => (item.F || "") === filterCategory);
-            }
-
-            filteredDB.forEach((item, idx) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-slate-600 font-mono">${idx + 1}</td>
-                    <td><input type="text" value="${item.A}" onchange="updateDBItem(${idx}, 'A', this.value)"></td>
-                    <td><input type="text" value="${item.B}" onchange="updateDBItem(${idx}, 'B', this.value)"></td>
-                    <td><input type="text" value="${item.C}" onchange="updateDBItem(${idx}, 'C', this.value)"></td>
-                    <td><input type="number" value="${item.D}" onchange="updateDBItem(${idx}, 'D', this.value)"></td>
-                    <td><input type="number" value="${item.E}" onchange="updateDBItem(${idx}, 'E', this.value)"></td>
-                    <td><input type="text" value="${item.F || ''}" onchange="updateDBItem(${idx}, 'F', this.value)"></td>
-                    <td><button onclick="openConfirmDelete(${idx})" class="text-rose-600 hover:text-rose-800 font-semibold">삭제</button></td>
-                    <td><button onclick="applyDBItem(${idx})" class="text-blue-600 hover:text-blue-800 font-semibold">적용</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-            document.getElementById('dbCount').textContent = filteredDB.length; // Show filtered count or total? Usually users expect filtered count.
-        }
-        function updateDBItem(idx, field, value) {
-            // 1. 수정 전 데이터 백업 (Deep Copy)
-            const oldItem = JSON.parse(JSON.stringify(localDB[idx]));
-
-            // 2. 로컬 데이터 업데이트
-            localDB[idx][field] = value;
-            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            
-            // 3. 로그 및 카테고리 업데이트
-            addLog(`품목 수정: ${oldItem.A} -> ${localDB[idx].A} (${field} 변경)`, 'success');
-            if (field === 'F') updateCategoryOptions();
-
-            // 4. n8n 전송 (수정 전 데이터와 수정 후 데이터를 함께 전달)
-            if (n8nConfig.autoSync && n8nConfig.webhookUpdate) {
-                // update 액션일 경우, oldData를 4번째 인자로 전달
-                sendToN8n(n8nConfig.webhookUpdate, localDB[idx], 'update', oldItem);
-            }
-        }
-        
-        // Revised Delete Item Logic
-        function openConfirmDelete(idx) {
-            pendingDeleteIdx = idx;
-            document.getElementById('confirmModal').classList.add('active');
-        }
-        
-        function closeConfirmModal() {
-            document.getElementById('confirmModal').classList.remove('active');
-            pendingDeleteIdx = null;
-        }
-
-        function executePendingDelete() {
-            if (pendingDeleteIdx === null) return;
-            
-            const deletedItem = localDB[pendingDeleteIdx];
-            localDB.splice(pendingDeleteIdx, 1);
-            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            renderDBTable();
-            addLog(`품목 삭제: ${deletedItem.A}`, 'warn');
-            if (n8nConfig.autoSync && n8nConfig.webhookDelete) sendToN8n(n8nConfig.webhookDelete, deletedItem, 'delete');
-            
-            closeConfirmModal();
-        }
-
-        // New Apply Logic
-        function applyDBItem(idx) {
-            const appliedItem = localDB[idx];
-            localDB.splice(idx, 1);
-            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            renderDBTable();
-            addLog(`품목 적용 완료 (로컬 삭제): ${appliedItem.A}`, 'success');
-        }
-
-        function applyAllDBItems() {
-            if (localDB.length === 0) {
-                customAlert("적용할 데이터가 없습니다.");
-                return;
-            }
-            const count = localDB.length;
-            localDB = [];
-            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            renderDBTable();
-            addLog(`모두 적용 완료: ${count}개 항목 로컬 캐시 삭제됨`, 'success');
-            customAlert("모든 품목이 업데이트 &적용되었습니다.");
-        }
-
-        // ... existing modal actions ...
-        function openAddItemModal() { document.getElementById('addItemModal').classList.add('active'); }
-        function closeAddItemModal() {
-            document.getElementById('addItemModal').classList.remove('active');
-            document.getElementById('newItemName').value = '';
-            document.getElementById('newItemSpec').value = '';
-            document.getElementById('newItemUnit').value = '';
-            document.getElementById('newItemMat').value = '';
-            document.getElementById('newItemLab').value = '';
-            document.getElementById('newItemNote').value = '';
-        }
-        function addNewItem() {
-            const name = document.getElementById('newItemName').value.trim();
-            const spec = document.getElementById('newItemSpec').value.trim();
-            const unit = document.getElementById('newItemUnit').value.trim();
-            const mat = document.getElementById('newItemMat').value || '0';
-            const lab = document.getElementById('newItemLab').value || '0';
-            const note = document.getElementById('newItemNote').value.trim();
-            
-            if (!name || !spec || !unit) { customAlert('품명, 규격, 단위는 필수 입력 항목입니다.'); return; }
-            const newItem = { A: name, B: spec, C: unit, D: mat, E: lab, F: note };
-            localDB.push(newItem);
-            localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-            closeAddItemModal();
-            renderDBTable();
-            addLog(`새 품목 추가: ${name} (${spec})`, 'success');
-            if (n8nConfig.autoSync && n8nConfig.webhookAdd) sendToN8n(n8nConfig.webhookAdd, newItem, 'add');
-        }
-        
-        // Revised Delete All Logic
-        function openDeleteAllModal() {
-            if (localDB.length === 0) {
-                customAlert("삭제할 데이터가 없습니다.");
-                return;
-            }
-            document.getElementById('deleteAllPassword').value = '';
-            document.getElementById('deleteAllModal').classList.add('active');
-            setTimeout(() => { document.getElementById('deleteAllPassword').focus(); }, 100);
-        }
-
-        function closeDeleteAllModal() {
-            document.getElementById('deleteAllModal').classList.remove('active');
-            document.getElementById('deleteAllPassword').value = '';
-        }
-
-        async function checkDeleteAll() {
-            const pwd = document.getElementById('deleteAllPassword').value;
-            if (pwd === "0001") {
-                const itemsToDelete = JSON.parse(JSON.stringify(localDB)); // Deep copy just in case
-                const count = itemsToDelete.length;
-                
-                // UI & Local Storage Clear
-                localDB = [];
-                localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-                renderDBTable();
-                closeDeleteAllModal();
-                
-                addLog(`로컬 DB 전체 삭제 완료 (${count}건)`, 'warn');
-
-                // n8n Sync
-                if (n8nConfig.autoSync && n8nConfig.webhookDelete) {
-                    addLog(`n8n 서버 데이터 삭제 요청 시작... (${count}건)`, 'info');
-                    
-                    // Show a non-blocking alert or toast
-                    // Since customAlert is blocking (modal), we show it at the end or start.
-                    // Let's show it at the start saying it's processing in background.
-                    
-                    // Process items
-                    for (const item of itemsToDelete) {
-                        await sendToN8n(n8nConfig.webhookDelete, item, 'delete');
-                    }
-                    
-                    addLog(`n8n 서버 데이터 삭제 작업 종료`, 'success');
-                    customAlert(`모든 데이터가 삭제되었습니다.\n(업데이트 & 동기화 완료)`);
-                } else {
-                    customAlert("모든 데이터가 삭제되었습니다.\n(업데이트 & 동기화 완료)");
-                }
-            } else {
-                customAlert("비밀번호가 올바르지 않습니다.");
-                document.getElementById('deleteAllPassword').value = '';
-                document.getElementById('deleteAllPassword').focus();
-            }
-        }
-
-        // ... existing n8n logic ...
-        async function sendToN8n(webhookUrl, data, action, oldData = null) {
-            if (!webhookUrl) return;
-            try {
-                let payload = {
-                    action: action,
-                    timestamp: new Date().toISOString(),
-                    data: { 
-                        품명: data.A, 
-                        규격: data.B, 
-                        단위: data.C, 
-                        재료비: data.D, 
-                        노무비: data.E, 
-                        비고: data.F 
-                    }
-                };
-
-                // 수정(Update) 액션일 경우, 검색용(수정 전) 데이터 추가 -> n8n에서 이 값을 키로 사용하여 행을 찾음
-                if (action === 'update' && oldData) {
-                    payload.lookup = {
-                        품명: oldData.A,
-                        규격: oldData.B
-                    };
-                    // 필요 시 전체 oldData도 포함
-                    payload.oldData = {
-                        품명: oldData.A, 
-                        규격: oldData.B, 
-                        단위: oldData.C, 
-                        재료비: oldData.D, 
-                        노무비: oldData.E, 
-                        비고: oldData.F 
-                    };
-                }
-
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (response.ok) addLog(`n8n 동기화 성공: ${action} - ${data.A}`, 'success');
-                else addLog(`n8n 동기화 실패: ${response.statusText}`, 'error');
-            } catch (err) { addLog(`n8n 연동 오류: ${err.message}`, 'error'); }
-        }
-
-        function loadN8nConfig() {
-            document.getElementById('n8nWebhookAdd').value = n8nConfig.webhookAdd || '';
-            document.getElementById('n8nWebhookUpdate').value = n8nConfig.webhookUpdate || '';
-            document.getElementById('n8nWebhookDelete').value = n8nConfig.webhookDelete || '';
-            document.getElementById('googleSheetsId').value = n8nConfig.sheetsId || '';
-            document.getElementById('enableAutoSync').checked = n8nConfig.autoSync || false;
-        }
-        function changePasswordClick() {
-            const newPassword = document.getElementById('newAdminPassword').value.trim();
-            if (!newPassword) { customAlert('새 비밀번호를 입력해주세요.'); return; }
-            if (newPassword.length !== 4) { customAlert('비밀번호는 4자리로 입력해주세요.'); return; }
-            if (changeAdminPassword(newPassword)) {
-                customAlert('관리자 비밀번호가 성공적으로 변경되었습니다!\n새 비밀번호: ' + newPassword);
-                document.getElementById('newAdminPassword').value = '';
-            } else { customAlert('비밀번호 변경에 실패했습니다.'); }
-        }
-        function saveN8nConfig() {
-            n8nConfig = {
-                webhookAdd: document.getElementById('n8nWebhookAdd').value.trim(),
-                webhookUpdate: document.getElementById('n8nWebhookUpdate').value.trim(),
-                webhookDelete: document.getElementById('n8nWebhookDelete').value.trim(),
-                sheetsId: document.getElementById('googleSheetsId').value.trim(),
-                autoSync: document.getElementById('enableAutoSync').checked
-            };
-            localStorage.setItem('samjin_n8n_config', JSON.stringify(n8nConfig));
-            addLog('n8n 설정이 저장되었습니다.', 'success');
-            customAlert('n8n 설정이 저장되었습니다!');
-        }
-        function exportDBToExcel() {
-            const ws = XLSX.utils.json_to_sheet(localDB.map(item => ({ '품명': item.A, '규격': item.B, '단위': item.C, '재료비': item.D, '노무비': item.E, '비고': item.F })));
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "DB");
-            XLSX.writeFile(wb, `SAMJIN_DB_${new Date().toISOString().slice(0,10)}.xlsx`);
-            addLog('DB 엑셀 파일 다운로드 완료', 'success');
-        }
-        function importDBFromExcel(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (jsonData.length < 2) { customAlert('파일에 유효한 데이터가 없습니다.'); return; }
-                    let importCount = 0;
-                    let skipCount = 0;
-                    const startRow = (String(jsonData[0][0]).includes('품명') || String(jsonData[0][0]).includes('이름')) ? 1 : 0;
-                    for (let i = startRow; i < jsonData.length; i++) {
-                        const row = jsonData[i];
-                        const itemName = row[0] ? String(row[0]).trim() : "";
-                        const itemSpec = row[1] ? String(row[1]).trim() : "";
-                        const itemUnit = row[2] ? String(row[2]).trim() : "";
-                        const itemMat = row[3] ? String(row[3]).replace(/[^0-9.]/g, '') : "0";
-                        const itemLab = row[4] ? String(row[4]).replace(/[^0-9.]/g, '') : "0";
-                        const itemNote = row[5] ? String(row[5]).trim() : ""; 
-                        
-                        if (!itemName) { skipCount++; continue; }
-                        const isDuplicate = localDB.some(item => item.A === itemName && item.B === itemSpec);
-                        if (isDuplicate) { skipCount++; continue; }
-                        const newItem = { A: itemName, B: itemSpec, C: itemUnit, D: itemMat, E: itemLab, F: itemNote };
-                        localDB.push(newItem);
-                        importCount++;
-                        if (n8nConfig.autoSync && n8nConfig.webhookAdd) sendToN8n(n8nConfig.webhookAdd, newItem, 'import');
-                    }
-                    localStorage.setItem('samjin_local_db', JSON.stringify(localDB));
-                    renderDBTable();
-                    customAlert(`엑셀 업로드 완료!\n추가: ${importCount}건\n스킵: ${skipCount}건`);
-                    addLog(`DB 엑셀 업로드 완료: ${importCount}건 추가, ${skipCount}건 스킵`, 'success');
-                    event.target.value = '';
-                } catch (err) {
-                    console.error(err);
-                    customAlert('엑셀 파일 읽기 중 오류가 발생했습니다: ' + err.message);
-                    addLog('DB 엑셀 업로드 오류: ' + err.message, 'error');
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // File Upload (Main Matching)
-        document.getElementById("excelFile").addEventListener("change", e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            fileNameDisplay.textContent = file.name;
-            fileNameDisplay.classList.add("text-blue-600", "font-bold");
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    csvRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (csvRows.length < 2) throw new Error("파일에 유효한 데이터가 없습니다.");
-                    const header = csvRows[0].map(h => String(h || "").replace(/\s+/g, ""));
-                    const findIdx = (kws) => {
-                        const idx = header.findIndex(h => kws.some(kw => h.includes(kw)));
-                        return idx === -1 ? 0 : idx;
-                    };
-                    colConfig.nameIdx = findIdx(["품명", "품목", "항목", "내역"]);
-                    colConfig.specIdx = findIdx(["규격", "사이즈", "치수"]);
-                    colConfig.unitIdx = findIdx(["단위"]);
-                    colConfig.matIdx = findIdx(["재료비", "자재비", "단가"]);
-                    colConfig.labIdx = findIdx(["노무비", "인건비"]);
-                    addLog(`내역서 로드 완료: ${file.name} (총 ${csvRows.length - 1}개 행 감지됨)`, 'success');
-                    if(dbRows.length > 0) matchBtn.disabled = false;
-                } catch (err) { 
-                    addLog("파일 읽기 오류: " + err.message, 'error'); 
-                    fileNameDisplay.textContent = "파일을 다시 선택해주세요.";
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            return columns;
         });
 
-        // Worker Match
-        function startWorkerMatch() {
-            if (csvRows.length < 2) return;
-            matchBtn.disabled = true;
-            downloadBtn.disabled = true;
-            matchBtn.classList.add('matching-active');
-            progressContainer.classList.remove('hidden');
-            addLog(`학습된 매칭 엔진 가동... (${csvRows.length - 1}건 처리 시작)`, 'warn');
-            const blob = new Blob([document.getElementById('worker-script').textContent], { type: "text/javascript" });
-            const worker = new Worker(URL.createObjectURL(blob));
-            worker.postMessage({ csvRows: csvRows.slice(1), dbRows: dbRows, config: colConfig });
-            worker.onmessage = function(e) {
-                if (e.data.type === 'PROGRESS') {
-                    const p = e.data.percent;
-                    progressBar.style.width = p + "%";
-                    document.getElementById("matchBtnText").textContent = `처리 중... ${p}%`;
-                } else if (e.data.type === 'COMPLETE') {
-                    resultRows = e.data.results;
-                    const conflicts = resultRows.filter(r => r[3] === "[충돌]").length;
-                    const autoMatched = resultRows.filter(r => r[8] === "자동매칭").length;
-                    addLog(`매칭 프로세스 완료!`, 'success');
-                    addLog(`자동 매칭: ${autoMatched}건 / 단가 충돌: ${conflicts}건 감지됨`, 'info');
-                    matchBtn.disabled = false;
-                    matchBtn.classList.remove('matching-active');
-                    document.getElementById("matchBtnText").textContent = "⚡ 고속 매칭 실행";
-                    downloadBtn.disabled = false;
-                    setTimeout(() => {
-                        progressContainer.classList.add('hidden');
-                        progressBar.style.width = "0%";
-                    }, 2000);
-                    worker.terminate();
-                }
+        // 헤더 업데이트 (1행)
+        if (parsedRows.length > 0) {
+            const headers = parsedRows[0];
+            if (headers.length >= 1) document.getElementById('th-col1').innerText = headers[0] || '항목1';
+            if (headers.length >= 2) document.getElementById('th-col2').innerText = headers[1] || '항목2';
+            if (headers.length >= 3) document.getElementById('th-col3').innerText = headers[2] || '항목3';
+            if (headers.length >= 4) document.getElementById('th-col4').innerText = headers[3] || '값';
+        }
+
+        // 데이터 (2행부터)
+        allData = parsedRows.slice(1).filter(cols => cols.length >= 1);
+
+        if (allData.length === 0) {
+            statusMsg.innerText = "표시할 데이터가 없습니다.";
+            document.getElementById('dataCountBadge').innerText = '0건';
+            return;
+        }
+
+        statusMsg.style.display = 'none';
+        document.getElementById('dataCountBadge').innerText = `총 ${allData.length.toLocaleString()}건`;
+        
+        updateRankings();
+        initVirtualScroll();
+    }
+
+    // Top 3 랭킹 계산
+    function updateRankings() {
+        const validItems = allData.map(row => {
+            const rawVal = row[3] || '0';
+            const val = parseFloat(rawVal.replace(/,/g, ''));
+            return {
+                name: row[0] || '-',
+                spec: row[1] || '',
+                rawVal: rawVal,
+                val: isNaN(val) ? 0 : val
             };
-            worker.onerror = function(err) {
-                addLog("매칭 엔진 오류: " + err.message, 'error');
-                matchBtn.disabled = false;
-                matchBtn.classList.remove('matching-active');
-                worker.terminate();
-            };
-        }
-        function downloadExcel() {
-            if (resultRows.length === 0) return;
-            try {
-                const header = ["공_품명", "공_규격", "공_단위", "M_재료비", "M_노무비", "코드1_품명", "코드1_규격", "코드1_단위", "재료비", "노무비", "코드2_품명", "코드2_규격", "코드2_단위", "재료비", "노무비"];
-                const ws = XLSX.utils.aoa_to_sheet([header, ...resultRows]);
-                const wscols = [{wch: 25}, {wch: 20}, {wch: 8}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 20}, {wch: 8}, {wch: 15}, {wch: 15}, {wch: 25}, {wch: 20}, {wch: 8}, {wch: 15}, {wch: 15}];
-                ws['!cols'] = wscols;
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "매칭결과");
-                const fileName = `매칭결과_${new Date().toISOString().slice(0,10)}_${Math.floor(Math.random()*1000)}.xlsx`;
-                XLSX.writeFile(wb, fileName);
-                addLog(`엑셀 파일 다운로드 완료: ${fileName}`, 'success');
-            } catch (err) { addLog("다운로드 중 오류 발생: " + err.message, 'error'); }
-        }
-
-        // New Feature: External DB Search (Updated)
-        const EXTERNAL_SHEET_ID = "1GaUzextj8jdry2iegBK7EiWDm1VASX8od3o9tP7DoZU";
-        const EXTERNAL_SHEET_NAME = "DB더보기";
-        let externalDBData = [];
-        let isExternalDBLoaded = false;
-
-        async function initExternalDB() {
-            if (isExternalDBLoaded) return;
-            
-            const filterSelect = document.getElementById('externalCodeFilter');
-            const status = document.getElementById('extDbStatus');
-            
-            status.innerHTML = '<span class="animate-pulse text-indigo-500">DB 연결 중...</span>';
-            status.className = "text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100";
-            filterSelect.disabled = true;
-
-            try {
-                const url = `https://opensheet.elk.sh/${EXTERNAL_SHEET_ID}/${encodeURIComponent(EXTERNAL_SHEET_NAME)}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error("Network Error");
-                
-                externalDBData = await res.json();
-                
-                // Populate Filter with Unique Codes from Column G ('코드', 'Code', 'code' assumed keys)
-                const codes = [...new Set(externalDBData.map(r => getValueByKeywords(r, ['코드', 'code', 'Code'])).filter(c => c && String(c).trim() !== ""))].sort();
-                
-                filterSelect.innerHTML = '<option value="">전체 코드(선택)</option>';
-                codes.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c;
-                    opt.textContent = c;
-                    filterSelect.appendChild(opt);
-                });
-                
-                filterSelect.disabled = false;
-                isExternalDBLoaded = true;
-                status.innerHTML = `<span class="text-emerald-600">✅ 로드됨</span>`;
-                status.className = "text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100";
-                
-                addLog(`외부 DB 연결 성공`, 'success');
-                
-            } catch (e) {
-                console.error(e);
-                status.innerText = "연결 실패";
-                status.className = "text-xs font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100";
-                addLog(`외부 DB 연결 실패: ${e.message}`, 'error');
-            }
-        }
-
-        function searchExternalDB() {
-            if (!isExternalDBLoaded) {
-                initExternalDB().then(searchExternalDB);
-                return;
-            }
-
-            const input = document.getElementById("externalSearchInput");
-            const filterSelect = document.getElementById("externalCodeFilter");
-            const keyword = input.value.toLowerCase().trim();
-            const selectedCode = filterSelect.value;
-            const tbody = document.getElementById("externalResultBody");
-
-            // Filter Logic
-            const filtered = externalDBData.filter(r => {
-                const matchKeyword = !keyword || (
-                    (r['품명'] && String(r['품명']).toLowerCase().includes(keyword)) ||
-                    (r['규격'] && String(r['규격']).toLowerCase().includes(keyword))
-                );
-                
-                const codeVal = getValueByKeywords(r, ['코드', 'code', 'Code']);
-                const matchCode = !selectedCode || (String(codeVal) === selectedCode);
-                
-                return matchKeyword && matchCode;
-            });
-
-            tbody.innerHTML = "";
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-slate-400 font-medium">검색 결과가 없습니다.</td></tr>';
-            } else {
-                // Limit rendering to 100 items for performance if needed, or show all
-                const displayItems = filtered.slice(0, 200); 
-                
-                displayItems.forEach(r => {
-                    const tr = document.createElement("tr");
-                    tr.className = "hover:bg-indigo-50 transition-colors cursor-pointer group";
-                    const codeVal = getValueByKeywords(r, ['코드', 'code', 'Code']);
-                    
-                    tr.innerHTML = `
-                        <td class="px-4 py-3 border-b border-slate-100 font-medium text-slate-800">${r['품명']||''}</td>
-                        <td class="px-4 py-3 border-b border-slate-100 text-slate-600">${r['규격']||''}</td>
-                        <td class="px-4 py-3 border-b border-slate-100 text-center text-slate-500">${r['단위']||''}</td>
-                        <td class="px-4 py-3 border-b border-slate-100 text-right font-mono text-slate-700 bg-slate-50/30">${r['재료비']||''}</td>
-                        <td class="px-4 py-3 border-b border-slate-100 text-right font-mono text-slate-700 bg-slate-50/30">${r['노무비']||''}</td>
-                        <td class="px-4 py-3 border-b border-slate-100 text-slate-500 text-xs max-w-[150px] truncate">${r['비고']||''}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-                
-                if(filtered.length > 200) {
-                      addLog(`검색 결과 ${filtered.length}건 중 상위 200건만 표시됩니다.`, 'info');
-                }
-            }
-        }
-
-        // Notepad persistence
-        const notepad = document.getElementById('dbNotepad');
-        if(notepad) {
-            notepad.value = localStorage.getItem('samjin_notepad') || '';
-            notepad.addEventListener('input', (e) => localStorage.setItem('samjin_notepad', e.target.value));
-        }
-
-        // Event Listeners
-        document.getElementById("sheetSelect").addEventListener("change", fetchDB);
-        document.getElementById("searchDB")?.addEventListener("input", renderDBTable);
-        document.getElementById("filterCategory")?.addEventListener("change", renderDBTable);
-
-        // ========== PUMSUM CALCULATOR FUNCTIONALITY (Pro v3.5 Logic) ==========
-        let pumsumMasterDB = [];
-        let pumsumFinalOutput = [];
-
-        // 텍스트 정규화 유틸리티
-        const clean = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9가-힣ø]/g, "");
-
-        // 쉼표 제거 (숫자 사이의 쉼표만)
-        const normalizeNumbers = (s) => {
-            if (!s) return "";
-            return String(s).replace(/(\d),(?=\d{3})/g, '$1');
-        };
-
-        // 규격 수치 분석
-        const parseSpec = (s) => {
-            if (!s) return [];
-            const results = [];
-            const cleanS = normalizeNumbers(s);
-            const regex = /(\d+\.?\d*)\s*([a-z가-힣%ø]+)|([a-z가-힣%ø]+)\s*(\d+\.?\d*)/gi;
-            let m;
-            while ((m = regex.exec(cleanS)) !== null) {
-                let v = parseFloat(m[1] || m[4]);
-                let u = (m[2] || m[3]).toLowerCase();
-                results.push({ val: v, unit: u });
-            }
-            return results;
-        };
-
-        // 범위(~) 매칭 체크
-        const checkRange = (val, dbSpec) => {
-            if (!dbSpec.includes('~')) return false;
-            const cleanDbSpec = normalizeNumbers(dbSpec);
-            const parts = cleanDbSpec.split('~');
-            const minM = parts[0].match(/(\d+\.?\d*)/);
-            const maxM = parts[1].match(/(\d+\.?\d*)/);
-            if (minM && maxM) {
-                const min = parseFloat(minM[1]);
-                const max = parseFloat(maxM[1]);
-                return val >= min && val <= max;
-            }
-            return false;
-        };
-
-        // 규격 비교 로직 (Pro v3.5)
-        const compareStrictPrecision = (userStr, dbSpecStr) => {
-            const userPairs = parseSpec(userStr);
-            const dbPairs = parseSpec(dbSpecStr);
-            const isBelowCondition = dbSpecStr.includes("이하");
-            const hasRangeCondition = dbSpecStr.includes("~");
-
-            if (dbPairs.length === 0) return { valid: true, specScore: 0 };
-
-            let matchScore = 0;
-            for (const dp of dbPairs) {
-                const up = userPairs.find(x => x.unit === dp.unit);
-                if (up) {
-                    if (hasRangeCondition) {
-                        if (checkRange(up.val, dbSpecStr)) {
-                            matchScore++;
-                            continue;
-                        } else {
-                            return { valid: false };
-                        }
-                    }
-
-                    if (dp.unit === 't' || dp.unit === 'kg') {
-                        if (up.val !== dp.val) return { valid: false };
-                    } else if (dp.unit === 'd' || dp.unit === 'ø') {
-                        if (isBelowCondition) {
-                            if (up.val > dp.val) return { valid: false };
-                        } else {
-                            if (up.val !== dp.val) return { valid: false };
-                        }
-                    } else {
-                        if (up.val !== dp.val) return { valid: false };
-                    }
-                    matchScore++;
-                } else {
-                    return { valid: false };
-                }
-            }
-            return { valid: true, specScore: matchScore };
-        };
-
-        async function syncPumsumData() {
-            const status = document.getElementById('pumsumSyncStatus');
-            const btn = document.getElementById('pumsumSyncBtn');
-            try {
-                btn.disabled = true;
-                status.innerText = "⏳ Pro v3.5: JSON 데이터 로드 중...";
-                const id = "1zQtfJZFsZ2PccBm4ul1JrOaKKOVN_FYmjV3GhJzYpJA";
-                const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=Table종합`;
-                const res = await fetch(url);
-                const txt = await res.text();
-                const json = JSON.parse(txt.substring(47).slice(0, -2));
-                
-                pumsumMasterDB = json.table.rows.map(r => {
-                    const rowData = r.c;
-                    return {
-                        keywords: rowData.slice(0, 26).map(c => c && c.v ? String(c.v).trim() : "").filter(v => v !== ""),
-                        code: rowData[26] ? rowData[26].v : "",
-                        spec: rowData[27] ? String(rowData[27].v) : "",
-                        extraData: rowData.slice(30, 38).map(c => c ? c.v : "")
-                    };
-                }).filter(d => d.keywords.length > 0 || d.code);
-
-                status.innerText = `✅ Pro v3.5 DB 연결됨`;
-                btn.innerHTML = "✔️ 동기화 완료";
-                btn.disabled = false;
-                initPumsumTableHeader();
-                addLog('Pro v3.5 품셈 DB 동기화 완료', 'success');
-            } catch (error) {
-                btn.disabled = false;
-                status.innerText = "❌ 데이터 로드 실패";
-                addLog('품셈 DB 로딩 에러: ' + error.message, 'error');
-            }
-        }
-
-        function initPumsumTableHeader() {
-            const header = document.getElementById('pumsumTableHeader');
-            header.innerHTML = `
-                <tr class="bg-indigo-50 text-slate-700 font-bold uppercase text-[10px]">
-                    <th class="px-3 py-3 border border-indigo-100">품명</th>
-                    <th class="px-3 py-3 border border-indigo-100">규격</th>
-                    <th class="px-3 py-3 border border-indigo-100 text-center">점수</th>
-                    <th class="px-3 py-3 border border-indigo-100 bg-indigo-100 text-indigo-700">품셈코드</th>
-                    <th class="px-3 py-3 border border-indigo-100 bg-indigo-100 text-indigo-700">품셈규격</th>
-                    <th class="px-3 py-3 border border-indigo-100 text-center">공종</th>
-                    <th class="px-3 py-3 border border-indigo-100 text-center">품셈(인)</th>
-                    <th class="px-3 py-3 border border-indigo-100 text-center">공종</th>
-                    <th class="px-3 py-3 border border-indigo-100 text-center">품셈(인)</th>
-                </tr>
-            `;
-        }
-
-        document.getElementById('pumsumFileInput')?.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (pumsumMasterDB.length === 0) { customAlert('먼저 품셈 DB를 동기화해주세요.'); this.value = ''; return; }
-            
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array'});
-                const sourceBill = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
-                runPumsumMatching(sourceBill);
-            };
-            reader.readAsArrayBuffer(file);
         });
 
-        async function runPumsumMatching(sourceBill) {
-            document.getElementById('pumsumLoading').classList.replace('hidden', 'flex');
-            document.getElementById('pumsumEmptyState').classList.add('hidden');
-            document.getElementById('pumsumResultArea').classList.add('hidden');
+        const rising = validItems.filter(item => item.val > 0)
+                                 .sort((a, b) => b.val - a.val)
+                                 .slice(0, 3);
 
-            // 렌더링 지연을 줘서 UI 업데이트 보장
-            await new Promise(r => setTimeout(r, 100));
+        const falling = validItems.filter(item => item.val < 0)
+                                  .sort((a, b) => a.val - b.val)
+                                  .slice(0, 3);
 
-            pumsumFinalOutput = JSON.parse(JSON.stringify(sourceBill));
-            // 헤더 설정 (v3.5 기준)
-            if (pumsumFinalOutput[0]) {
-                pumsumFinalOutput[0][4] = "품셈코드";
-                pumsumFinalOutput[0][5] = "품셈규격";
-                const headers = ["공종", "품셈(인)", "공종", "품셈(인)", "공종", "품셈(인)", "공종", "품셈(인)", "신뢰도"];
-                for(let j=0; j<9; j++) pumsumFinalOutput[0][6 + j] = headers[j];
-            }
+        renderRankList(rankListUp, rising, 'up');
+        renderRankList(rankListDown, falling, 'down');
+    }
 
-            const excludeKeywords = ['엘보', '티이', '레듀샤', '리듀서', '소켓', '유니온', '어댑터', '아답타', '이음쇠', '이음관', '서포트'];
-            let totalMatched = 0;
+    function renderRankList(container, items, type) {
+        if (items.length === 0) {
+            container.innerHTML = `<li class="rank-empty">해당 내역 없음</li>`;
+            return;
+        }
 
-            for (let i = 1; i < pumsumFinalOutput.length; i++) {
-                const row = pumsumFinalOutput[i];
-                if (!row || !row[0]) continue;
+        const html = items.map((item) => {
+            const icon = type === 'up' ? '▲' : '▼';
+            const colorClass = type === 'up' ? 'price-up' : 'price-down';
+            let displayVal = item.rawVal;
+            if(type === 'up' && !displayVal.includes('+')) displayVal = '+' + displayVal;
+            
+            return `
+                <li class="rank-item">
+                    <div style="display:flex; align-items:center; overflow:hidden; flex:1; gap:6px;">
+                        <span class="rank-item-name" title="${item.name}">${item.name}</span>
+                        <span class="rank-item-spec" title="${item.spec}">${item.spec}</span>
+                    </div>
+                    <span class="rank-item-val ${colorClass}">
+                        <span style="font-size:10px; margin-right:2px;">${icon}</span>${displayVal}
+                    </span>
+                </li>
+            `;
+        }).join('');
+        
+        container.innerHTML = html;
+    }
 
-                const itemName = String(row[0]).trim();
-                const itemSpec = String(row[1] || "").trim();
-                const userQty = parseFloat(normalizeNumbers(String(row[3]))) || 0;
+    // 가상 스크롤 초기화
+    function initVirtualScroll() {
+        contentContainer.style.height = `${allData.length * ROW_HEIGHT}px`;
+        viewport.removeEventListener('scroll', onScroll); 
+        viewport.addEventListener('scroll', onScroll);
+        onScroll();
+    }
 
-                const searchBase = normalizeNumbers(itemName + " " + itemSpec).toLowerCase();
-                let bestMatch = null;
-                let currentMaxScore = -1;
-                let bestSpecScore = -1;
+    function onScroll() {
+        const scrollTop = viewport.scrollTop;
+        const viewportHeight = viewport.clientHeight;
+        const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
+        const endIndex = Math.min(allData.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT));
+        const renderStart = Math.max(0, startIndex - 5);
+        const renderEnd = Math.min(allData.length, endIndex + 5);
+        renderRows(renderStart, renderEnd);
+    }
 
-                const hasExcludeKeyword = excludeKeywords.some(kw => itemName.includes(kw) || itemSpec.includes(kw));
+    function renderRows(start, end) {
+        let html = '';
+        for (let i = start; i < end; i++) {
+            const rowData = allData[i];
+            const col1 = rowData[0] || '';
+            const col2 = rowData[1] || '';
+            const col3 = rowData[2] || '';
+            const col4Raw = rowData[3] || '0'; 
 
-                if (!hasExcludeKeyword) {
-                    for (const dbEntry of pumsumMasterDB) {
-                        let cellScore = 0;
-                        dbEntry.keywords.forEach(kw => {
-                            if (searchBase.includes(kw.toLowerCase())) cellScore++;
-                        });
+            let diffVal = parseFloat(col4Raw.replace(/,/g, ''));
+            let diffClass = 'price-flat';
+            let diffIcon = '';
+            let diffText = col4Raw; 
 
-                        if (cellScore > 0 && cellScore >= currentMaxScore) {
-                            const specCheck = compareStrictPrecision(itemSpec, dbEntry.spec);
-                            if (specCheck.valid) {
-                                if (cellScore > currentMaxScore || (cellScore === currentMaxScore && specCheck.specScore > bestSpecScore)) {
-                                    currentMaxScore = cellScore;
-                                    bestSpecScore = specCheck.specScore;
-                                    bestMatch = dbEntry;
-                                }
-                            }
-                        }
-                    }
+            if (!isNaN(diffVal)) {
+                diffText = diffVal.toLocaleString();
+                if (diffVal > 0) {
+                    diffClass = 'price-up';
+                    diffIcon = '▲';
+                    diffText = `+${diffText}`;
+                } else if (diffVal < 0) {
+                    diffClass = 'price-down';
+                    diffIcon = '▼';
                 }
-
-                if (bestMatch) {
-                    totalMatched++;
-                    pumsumFinalOutput[i][4] = bestMatch.code;
-                    pumsumFinalOutput[i][5] = bestMatch.spec;
-                    pumsumFinalOutput[i][14] = currentMaxScore;
-                    for (let j = 0; j < 8; j++) {
-                        const dbVal = bestMatch.extraData[j];
-                        const targetIdx = 6 + j;
-                        if ([1, 3, 5, 7].includes(j)) {
-                            const val = parseFloat(normalizeNumbers(String(dbVal))) || 0;
-                            pumsumFinalOutput[i][targetIdx] = val * userQty;
-                        } else {
-                            pumsumFinalOutput[i][targetIdx] = dbVal;
-                        }
-                    }
-                } else {
-                    pumsumFinalOutput[i][4] = ""; pumsumFinalOutput[i][5] = ""; pumsumFinalOutput[i][14] = 0;
-                    for (let j = 0; j < 8; j++) pumsumFinalOutput[i][6 + j] = "";
-                }
+            } else {
+                diffClass = ''; 
+                diffText = col4Raw;
             }
 
-            renderPumsumResult();
-            
-            document.getElementById('pumsumStatTotal').textContent = pumsumFinalOutput.length - 1;
-            document.getElementById('pumsumStatScore').textContent = `${totalMatched} Matched`;
-            document.getElementById('pumsumStatStatus').textContent = "완료";
-            
-            document.getElementById('pumsumLoading').classList.replace('flex', 'hidden');
-            document.getElementById('pumsumResultArea').classList.remove('hidden');
-            addLog('Pro v3.5 품셈 분석 완료', 'success');
+            const topPos = i * ROW_HEIGHT;
+            html += `
+                <div class="table-row" style="height: ${ROW_HEIGHT}px; top: ${topPos}px;">
+                    <div class="td-cell text-left" title="${col1}">${col1}</div>
+                    <div class="td-cell text-left" title="${col2}">${col2}</div>
+                    <div class="td-cell text-center">${col3}</div>
+                    <div class="td-cell text-right ${diffClass}">
+                        <span style="margin-right:4px;">${diffIcon}</span>${diffText}
+                    </div>
+                </div>
+            `;
         }
+        contentContainer.innerHTML = html;
+    }
 
-        function renderPumsumResult() {
-            const body = document.getElementById('pumsumResultBody');
-            body.innerHTML = '';
-            // 상위 100개만 프리뷰 (성능 이슈 방지)
-            const previewRows = pumsumFinalOutput.slice(1, 101); 
-            
-            previewRows.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-indigo-50 transition-colors";
-                const afVal = row[7];
-                const afDisplay = afVal ? (isNaN(afVal) ? afVal : Number(afVal).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})) : '';
-                
-                tr.innerHTML = `
-                    <td class="px-3 py-2 border-b border-slate-100 text-slate-700 font-bold truncate">${row[0]}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-slate-500 truncate">${row[1] || ''}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center"><span class="score-badge bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px]">${row[14] || 0}</span></td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center font-mono text-indigo-600 font-bold bg-indigo-50/30">${row[4] || '-'}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center text-indigo-700 font-bold bg-indigo-50/30 truncate">${row[5] || '-'}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center text-slate-400 text-[10px] truncate">${row[6] || ''}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center text-emerald-600 font-bold">${afDisplay}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center text-slate-400 text-[10px] truncate">${row[8] || ''}</td>
-                    <td class="px-3 py-2 border-b border-slate-100 text-center text-slate-400 text-[10px] truncate">${row[9] ? Number(row[9]).toLocaleString() : ''}</td>
-                `;
-                body.appendChild(tr);
-            });
-        }
+    window.onload = fetchGoogleSheetData;
 
-        function exportPumsumToExcel() {
-            try {
-                const ws = XLSX.utils.aoa_to_sheet(pumsumFinalOutput);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Pro_v3.5_결과");
-                XLSX.writeFile(wb, `품셈_산출_v3.5_${new Date().toISOString().slice(0,10)}.xlsx`);
-                addLog('품셈 엑셀 파일 다운로드 완료', 'success');
-            } catch (err) {
-                console.error(err);
-                addLog('엑셀 저장 중 오류: ' + err.message, 'error');
-            }
-        }
+</script>
 
-        // Initialize
-        window.onload = () => {
-            fetchDB();
-            loadN8nConfig();
-        };
-    </script>
 </body>
 </html>
