@@ -1101,38 +1101,112 @@
 
     <script src="config.js"></script>
     <script>
-    /* config.js 미설치 안내 가드 — GitHub Pages 배포 시 config.js 없이 접근하면 설정 안내 화면을 표시 */
-    if (typeof APP_CONFIG === 'undefined') {
+    /* config.js 미설치 가드 — localStorage 저장 설정 우선 사용, 없으면 인터랙티브 폼 표시 */
+    (function () {
+        // 1) config.js가 이미 로드됐으면 그대로 사용
+        if (typeof APP_CONFIG !== 'undefined') return;
+
+        // 2) localStorage에 저장된 설정이 있으면 APP_CONFIG로 복원
+        const LS_KEY = 'samjin_app_config';
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                window.APP_CONFIG = Object.freeze(Object.assign({
+                    OPENSHEET_API_BASE: 'https://opensheet.elk.sh',
+                    LME_SHEET_NAME: 'LME',
+                    PUMSUM_SHEET_NAME: 'Table종합',
+                    EXCHANGE_RATE_API: 'https://open.er-api.com/v6/latest/USD'
+                }, parsed));
+                return; // 정상 로드 — 앱 실행
+            } catch (e) { /* 손상된 데이터 무시 후 폼 표시 */ }
+        }
+
+        // 3) 설정 없음 → 빈 APP_CONFIG + 인터랙티브 설정 폼 표시
         window.APP_CONFIG = Object.freeze({
             GOOGLE_SHEETS_ID: '', OPENSHEET_API_BASE: 'https://opensheet.elk.sh',
-            DEFAULT_ADMIN_PASSWORD: '', EXCHANGE_RATE_API: '',
+            DEFAULT_ADMIN_PASSWORD: '', EXCHANGE_RATE_API: 'https://open.er-api.com/v6/latest/USD',
             GEMINI_API_KEY: '', LME_SHEET_ID: '', LME_SHEET_NAME: 'LME',
             PUMSUM_SHEET_ID: '', PUMSUM_SHEET_NAME: 'Table종합', N8N_NOTIFICATION_WEBHOOK: ''
         });
-        document.body.style.cssText = 'margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;font-family:sans-serif;';
-        document.body.innerHTML = `
-            <div style="max-width:540px;width:100%;margin:0 20px;background:#fff;border-radius:20px;padding:44px;box-shadow:0 8px 32px rgba(0,0,0,0.10);border:1px solid #e2e8f0;">
-                <div style="text-align:center;margin-bottom:28px;">
-                    <div style="font-size:52px;margin-bottom:14px;">⚙️</div>
-                    <h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 8px">초기 설정이 필요합니다</h1>
-                    <p style="color:#64748b;font-size:14px;margin:0"><code style="background:#f1f5f9;padding:2px 8px;border-radius:6px;font-size:13px;">config.js</code> 파일이 없거나 로드에 실패했습니다.</p>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:22px;margin-bottom:20px;">
-                    <p style="font-size:13px;font-weight:700;color:#334155;margin:0 0 12px;">📋 설정 방법</p>
-                    <ol style="font-size:13px;color:#475569;margin:0;padding-left:20px;line-height:2.2;">
-                        <li><code style="background:#e2e8f0;padding:1px 7px;border-radius:5px;">config.example.js</code> 파일을 복사합니다</li>
-                        <li>파일명을 <strong>config.js</strong>로 변경합니다</li>
-                        <li>API 키·시트 ID·Webhook URL을 실제 값으로 채웁니다</li>
-                        <li>페이지를 새로고침합니다</li>
-                    </ol>
-                </div>
-                <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;font-size:12px;color:#78350f;line-height:1.7;">
-                    ⚠️ <strong>보안 주의:</strong> <code>config.js</code>에는 API 키가 포함됩니다.<br>
-                    절대 GitHub 공개 저장소에 커밋하지 마세요. <code>.gitignore</code>에 등록되어 있습니다.
-                </div>
-            </div>`;
         window.__SETUP_REQUIRED = true;
-    }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.style.cssText = 'margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f1f5f9;font-family:sans-serif;';
+            document.body.innerHTML = `
+            <div style="max-width:580px;width:100%;margin:24px 16px;background:#fff;border-radius:20px;padding:40px 44px;box-shadow:0 8px 40px rgba(0,0,0,0.10);border:1px solid #e2e8f0;">
+                <div style="text-align:center;margin-bottom:28px;">
+                    <div style="font-size:48px;margin-bottom:10px;">⚙️</div>
+                    <h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 6px">초기 설정</h1>
+                    <p style="color:#64748b;font-size:13px;margin:0">값을 입력하고 저장하면 브라우저에 보관되어 바로 사용할 수 있습니다.</p>
+                </div>
+
+                <div id="setupError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;font-size:13px;color:#991b1b;margin-bottom:18px;"></div>
+
+                ${[
+                    ['GOOGLE_SHEETS_ID',      '견적/DB 시트 ID',          'Google Sheets URL의 /d/ 뒤 ID 값', false],
+                    ['LME_SHEET_ID',          'LME 원자재 시트 ID',        'LME 데이터가 있는 구글 시트 ID',    false],
+                    ['PUMSUM_SHEET_ID',       '품셈 계산기 시트 ID',        '품셈 데이터가 있는 구글 시트 ID',   false],
+                    ['GEMINI_API_KEY',        'Gemini API 키',             'Google AI Studio에서 발급',        true ],
+                    ['N8N_NOTIFICATION_WEBHOOK','n8n Webhook URL',          '알림 시스템용 Webhook URL (선택)',  false],
+                    ['DEFAULT_ADMIN_PASSWORD','관리자 초기 비밀번호',       '첫 로그인 후 변경 권장',            true ],
+                ].map(([key, label, hint, isPw]) => `
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:5px;">${label}</label>
+                    <input id="cfg_${key}" type="${isPw ? 'password' : 'text'}" placeholder="${hint}"
+                        style="width:100%;box-sizing:border-box;padding:9px 13px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:13px;color:#1e293b;outline:none;transition:border .15s;"
+                        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#cbd5e1'">
+                </div>`).join('')}
+
+                <div style="margin-top:24px;display:flex;gap:10px;">
+                    <button onclick="__saveSetup()"
+                        style="flex:1;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s;"
+                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                        저장 후 시작하기
+                    </button>
+                    <button onclick="__resetSetup()"
+                        style="padding:12px 18px;background:#f1f5f9;color:#64748b;border:1.5px solid #e2e8f0;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;"
+                        title="저장된 설정 초기화">
+                        초기화
+                    </button>
+                </div>
+                <p style="text-align:center;font-size:11px;color:#94a3b8;margin-top:16px;line-height:1.6;">
+                    입력값은 이 브라우저의 localStorage에만 저장됩니다.<br>
+                    서버로 전송되거나 GitHub에 업로드되지 않습니다.
+                </p>
+            </div>`;
+
+            window.__saveSetup = function () {
+                const fields = ['GOOGLE_SHEETS_ID','LME_SHEET_ID','PUMSUM_SHEET_ID','GEMINI_API_KEY','N8N_NOTIFICATION_WEBHOOK','DEFAULT_ADMIN_PASSWORD'];
+                const required = ['GOOGLE_SHEETS_ID'];
+                const errEl = document.getElementById('setupError');
+                const missing = required.filter(k => !document.getElementById('cfg_' + k).value.trim());
+                if (missing.length) {
+                    errEl.textContent = '견적/DB 시트 ID는 필수 항목입니다.';
+                    errEl.style.display = 'block';
+                    document.getElementById('cfg_' + missing[0]).focus();
+                    return;
+                }
+                errEl.style.display = 'none';
+                const cfg = {
+                    OPENSHEET_API_BASE: 'https://opensheet.elk.sh',
+                    LME_SHEET_NAME: 'LME',
+                    PUMSUM_SHEET_NAME: 'Table종합',
+                    EXCHANGE_RATE_API: 'https://open.er-api.com/v6/latest/USD'
+                };
+                fields.forEach(k => { const v = document.getElementById('cfg_' + k).value.trim(); if (v) cfg[k] = v; });
+                localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+                location.reload();
+            };
+
+            window.__resetSetup = function () {
+                if (confirm('저장된 설정을 모두 삭제하고 초기화하시겠습니까?')) {
+                    localStorage.removeItem(LS_KEY);
+                    location.reload();
+                }
+            };
+        });
+    })();
     </script>
     <script src="script.js"></script>
     <script src="main.js"></script>
